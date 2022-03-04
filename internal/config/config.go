@@ -6,7 +6,10 @@ import (
 )
 
 // Config represents the application configuration structure
-type Config struct{}
+type Config struct {
+	Environment      string `default:"prod"`
+	PortalAPIAddress string `default:":8081",split_words:"true"`
+}
 
 // LoadFromEnv loads a new configuration structure using environment variables and an optional .env file
 func LoadFromEnv() (*Config, error) {
