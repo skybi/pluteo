@@ -8,7 +8,6 @@ import (
 	"github.com/skybi/data-server/internal/config"
 	"os"
 	"os/signal"
-	"strings"
 )
 
 func main() {
@@ -24,15 +23,15 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not load the configuration")
 	}
-	if strings.ToLower(cfg.Environment) == "dev" {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	} else {
+	if cfg.IsEnvProduction() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 	log.Debug().Str("config", fmt.Sprintf("%+v", cfg)).Msg("")
 
 	// Start up the portal & data APIs
-	log.Info().Str("portal_api", cfg.PortalAPIAddress).Msg("starting up portal & data APIs...")
+	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Msg("starting up portal & data APIs...")
 	apis := &api.Service{
 		Config: cfg,
 	}
