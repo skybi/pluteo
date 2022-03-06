@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/skybi/data-server/internal/api/portal/session"
+	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
 	"github.com/skybi/data-server/internal/config"
 	"golang.org/x/oauth2"
 	"net/http"
@@ -17,6 +19,7 @@ type Service struct {
 
 	oidcOAuth2Config    *oauth2.Config
 	oidcIDTokenVerifier *oidc.IDTokenVerifier
+	sessionStorage      session.Storage
 }
 
 // Startup starts up the portal API
@@ -46,6 +49,13 @@ func (service *Service) Startup() error {
 		RedirectURL:  service.Config.PortalAPIBaseAddress + "/v1/auth/oidc/callback",
 		Scopes:       []string{oidc.ScopeOpenID},
 	}
+
+	// Create the session storage
+	sessionStorage, err := inmem.New()
+	if err != nil {
+		return err
+	}
+	service.sessionStorage = sessionStorage
 
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)

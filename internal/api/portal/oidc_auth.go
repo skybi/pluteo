@@ -107,6 +107,8 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 		return
 	}
 
+	// TODO: Implement own session management
+
 	// Set the ID token cookie
 	http.SetCookie(writer, &http.Cookie{
 		Name:     cookieNameToken,
