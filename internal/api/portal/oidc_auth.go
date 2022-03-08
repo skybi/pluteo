@@ -1,6 +1,7 @@
 package portal
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -11,12 +12,14 @@ import (
 )
 
 var (
-	cookieNameToken = "session_token"
+	sessionTokenCookieName = "session_token"
 
-	stateLength         = 16
-	nonceLength         = 16
-	cookieNameState     = "login_state"
-	cookieLifetimeState = int(time.Hour.Seconds())
+	loginStateStateLength    = 16
+	loginStateNonceLength    = 16
+	loginStateCookieName     = "login_state"
+	loginStateCookieLifetime = int(time.Hour.Seconds())
+
+	contextValueSession = "session"
 )
 
 type oidcLoginFlowState struct {
@@ -31,8 +34,8 @@ func (service *Service) EndpointOIDCLoginFlow(writer http.ResponseWriter, reques
 
 	// Create and set the login flow state cookie
 	state := oidcLoginFlowState{
-		ID:         random.String(stateLength, random.CharsetAlphanumeric),
-		Nonce:      random.String(nonceLength, random.CharsetAlphanumeric),
+		ID:         random.String(loginStateStateLength, random.CharsetAlphanumeric),
+		Nonce:      random.String(loginStateNonceLength, random.CharsetAlphanumeric),
 		Afterwards: afterwards,
 	}
 	stateJSON, err := json.Marshal(state)
@@ -41,9 +44,9 @@ func (service *Service) EndpointOIDCLoginFlow(writer http.ResponseWriter, reques
 		return
 	}
 	http.SetCookie(writer, &http.Cookie{
-		Name:     cookieNameState,
+		Name:     loginStateCookieName,
 		Value:    base64.StdEncoding.EncodeToString(stateJSON),
-		MaxAge:   cookieLifetimeState,
+		MaxAge:   loginStateCookieLifetime,
 		Secure:   service.Config.IsPortalAPISecure(),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -56,7 +59,7 @@ func (service *Service) EndpointOIDCLoginFlow(writer http.ResponseWriter, reques
 // EndpointOIDCLoginCallback handles the 'GET /v1/auth/oidc/callback' endpoint
 func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, request *http.Request) {
 	// Extract the state cookie
-	stateCookie, err := request.Cookie(cookieNameState)
+	stateCookie, err := request.Cookie(loginStateCookieName)
 	if err != nil {
 		service.error(writer, http.StatusBadRequest, "no login flow initiated")
 		return
@@ -79,12 +82,7 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	}
 
 	// Unset the state cookie
-	http.SetCookie(writer, &http.Cookie{
-		Name:     cookieNameState,
-		Value:    "",
-		Expires:  time.Now().Add(-time.Second),
-		HttpOnly: true,
-	})
+	unsetCookie(writer, loginStateCookieName)
 
 	// Retrieve the OAuth2 access token and extract and verify the ID token + nonce
 	oauth2Token, err := service.oidcOAuth2Config.Exchange(request.Context(), request.URL.Query().Get("code"))
@@ -107,12 +105,32 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 		return
 	}
 
-	// TODO: Implement own session management
+	// Extract the session ID (sid) claim if it is set by the OP
+	claims := make(map[string]interface{})
+	if err = idToken.Claims(&claims); err != nil {
+		service.internalError(writer, err)
+		return
+	}
+	sessionID := ""
+	if rawSID, ok := claims["sid"]; ok {
+		if sid, ok := rawSID.(string); ok {
+			sessionID = sid
+		}
+	}
 
-	// Set the ID token cookie
+	// Create a new session for the user
+	sessionToken, err := service.sessionStorage.Create(request.Context(), idToken.Subject, sessionID, idToken.Expiry.Unix())
+	if err != nil {
+		service.internalError(writer, err)
+		return
+	}
+
+	// Set the session token cookie
 	http.SetCookie(writer, &http.Cookie{
-		Name:     cookieNameToken,
-		Value:    rawIDToken,
+		Name:     sessionTokenCookieName,
+		Value:    sessionToken,
+		Path:     "/",
+		Expires:  idToken.Expiry,
 		Secure:   service.Config.IsPortalAPISecure(),
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
@@ -126,4 +144,40 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 func (service *Service) EndpointOIDCBackchannelLogout(writer http.ResponseWriter, request *http.Request) {
 	// TODO: implement backchannel logout logic
 	service.error(writer, http.StatusNotImplemented, "not implemented yet")
+}
+
+// MiddlewareVerifySession makes sure that the requesting client has provided a valid session token.
+// Additionally, it injects the session object itself into the request context.
+func (service *Service) MiddlewareVerifySession(next http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		// Retrieve the session token cookie
+		cookie, err := request.Cookie(sessionTokenCookieName)
+		if err != nil {
+			service.error(writer, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+
+		// Retrieve the session itself and validate its expiration time
+		session, err := service.sessionStorage.GetByRawToken(request.Context(), cookie.Value)
+		if err != nil {
+			service.internalError(writer, err)
+			return
+		}
+		if session == nil || session.Expires <= time.Now().Unix() {
+			unsetCookie(writer, sessionTokenCookieName)
+			service.error(writer, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+
+		// Delegate to the next handler
+		request = request.WithContext(context.WithValue(request.Context(), contextValueSession, session))
+		next(writer, request)
+	}
+}
+
+func unsetCookie(writer http.ResponseWriter, name string) {
+	http.SetCookie(writer, &http.Cookie{
+		Name:   name,
+		MaxAge: -1,
+	})
 }
