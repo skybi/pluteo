@@ -3,6 +3,7 @@ package apikey
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/skybi/data-server/internal/bitflag"
 )
 
 // Repository defines the API key repository API
@@ -32,7 +33,7 @@ type Create struct {
 	Description  string
 	Quota        int64
 	RateLimit    int
-	Capabilities Capabilities
+	Capabilities bitflag.Container
 }
 
 // Update is used to update an existing API key
@@ -41,5 +42,5 @@ type Update struct {
 	Quota        *int64
 	UsedQuota    *int64
 	RateLimit    *int
-	Capabilities *Capabilities
+	Capabilities *bitflag.Container
 }

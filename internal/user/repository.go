@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	"github.com/skybi/data-server/internal/apikey"
+	"github.com/skybi/data-server/internal/bitflag"
 )
 
 // Repository defines the user repository API
@@ -38,5 +38,5 @@ type Update struct {
 type APIKeyPolicyUpdate struct {
 	MaxQuota            *int64
 	MaxRateLimit        *int
-	AllowedCapabilities *apikey.Capabilities
+	AllowedCapabilities *bitflag.Container
 }
