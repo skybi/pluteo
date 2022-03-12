@@ -10,6 +10,8 @@ import (
 type Config struct {
 	Environment string `default:"prod"`
 
+	PostgresDSN string `split_words:"true"`
+
 	PortalAPIListenAddress string `default:":8081" split_words:"true"`
 	PortalAPIBaseAddress   string `default:"http://localhost:8081" split_words:"true"`
 

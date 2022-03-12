@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api"
 	"github.com/skybi/data-server/internal/config"
+	"github.com/skybi/data-server/internal/storage/postgres"
 	"os"
 	"os/signal"
 )
@@ -29,6 +31,13 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 	log.Debug().Str("config", fmt.Sprintf("%+v", cfg)).Msg("")
+
+	// Initialize the PostgreSQL storage driver
+	log.Info().Msg("initializing database connection...")
+	driver := postgres.New(cfg.PostgresDSN)
+	if err := driver.Initialize(context.Background()); err != nil {
+		log.Fatal().Err(err).Msg("could not initialize the database connection")
+	}
 
 	// Start up the portal & data APIs
 	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Msg("starting up portal & data APIs...")

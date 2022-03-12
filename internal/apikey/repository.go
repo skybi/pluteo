@@ -38,6 +38,7 @@ type Create struct {
 // Update is used to update an existing API key
 type Update struct {
 	Quota        *int64
+	UsedQuota    *int64
 	RateLimit    *int
 	Capabilities *Capabilities
 }
