@@ -11,6 +11,7 @@ require (
 require (
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-memdb v1.3.2
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 )
