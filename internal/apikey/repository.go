@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Repository represents the API key repository API
+// Repository defines the API key repository API
 type Repository interface {
 	// GetByID retrieves an API key by its ID
 	GetByID(ctx context.Context, id uuid.UUID) (*Key, error)
