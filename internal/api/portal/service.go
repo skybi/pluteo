@@ -4,8 +4,10 @@ import (
 	"context"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
+	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/config"
 	"golang.org/x/oauth2"
 	"net/http"
@@ -20,16 +22,26 @@ type Service struct {
 	oidcOAuth2Config    *oauth2.Config
 	oidcIDTokenVerifier *oidc.IDTokenVerifier
 	sessionStorage      session.Storage
+
+	writer *schema.Writer
 }
 
 // Startup starts up the portal API
 func (service *Service) Startup() error {
+	// Create the HTTP schema writer
+	service.writer = &schema.Writer{
+		InternalErrorHook: func(err error) {
+			log.Error().Err(err).Msg("the portal API experienced an unexpected error")
+		},
+	}
+
+	// Create the HTTP router
 	router := chi.NewRouter()
 	router.NotFound(func(writer http.ResponseWriter, _ *http.Request) {
-		service.error(writer, http.StatusNotFound, "not found")
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
 	})
 	router.MethodNotAllowed(func(writer http.ResponseWriter, _ *http.Request) {
-		service.error(writer, http.StatusMethodNotAllowed, "method not allowed")
+		service.writer.WriteErrors(writer, http.StatusMethodNotAllowed, schema.ErrMethodNotAllowed)
 	})
 
 	// Create the OIDC provider & ID token verifier
@@ -60,7 +72,7 @@ func (service *Service) Startup() error {
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
-	router.Post("/v1/auth/oidc/backchannel_logout", service.EndpointOIDCBackchannelLogout)
+	// TODO: Implement backchannel logout
 
 	// Start up the server
 	server := &http.Server{

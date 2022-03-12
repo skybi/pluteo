@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/random"
 	"net/http"
 	"time"
@@ -20,6 +21,34 @@ var (
 	loginStateCookieLifetime = int(time.Hour.Seconds())
 
 	contextValueSession = "session"
+)
+
+var (
+	errAuthNoLoginFlowInitiated = &schema.Error{
+		Type:    "portal.auth.noLoginFlowInitiated",
+		Message: "No login flow initiated.",
+		Details: map[string]interface{}{},
+	}
+	errAuthInvalidStateCookie = &schema.Error{
+		Type:    "portal.auth.invalidStateCookie",
+		Message: "Invalid state cookie.",
+		Details: map[string]interface{}{},
+	}
+	errAuthStatesDoNotMatch = &schema.Error{
+		Type:    "portal.auth.statesDoNotMatch",
+		Message: "States do not match.",
+		Details: map[string]interface{}{},
+	}
+	errAuthInvalidLoginCode = &schema.Error{
+		Type:    "portal.auth.invalidLoginCode",
+		Message: "Invalid login code. It may be expired.",
+		Details: map[string]interface{}{},
+	}
+	errAuthInvalidNonce = &schema.Error{
+		Type:    "portal.auth.invalidNonce",
+		Message: "Invalid nonce.",
+		Details: map[string]interface{}{},
+	}
 )
 
 type oidcLoginFlowState struct {
@@ -40,7 +69,7 @@ func (service *Service) EndpointOIDCLoginFlow(writer http.ResponseWriter, reques
 	}
 	stateJSON, err := json.Marshal(state)
 	if err != nil {
-		service.internalError(writer, err)
+		service.writer.WriteInternalError(writer, err)
 		return
 	}
 	http.SetCookie(writer, &http.Cookie{
@@ -61,23 +90,23 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	// Extract the state cookie
 	stateCookie, err := request.Cookie(loginStateCookieName)
 	if err != nil {
-		service.error(writer, http.StatusBadRequest, "no login flow initiated")
+		service.writer.WriteErrors(writer, http.StatusBadRequest, errAuthNoLoginFlowInitiated)
 		return
 	}
 	stateJSON, err := base64.StdEncoding.DecodeString(stateCookie.Value)
 	if err != nil {
-		service.error(writer, http.StatusBadRequest, "invalid state cookie")
+		service.writer.WriteErrors(writer, http.StatusBadRequest, errAuthInvalidStateCookie)
 		return
 	}
 	state := new(oidcLoginFlowState)
 	if err := json.Unmarshal(stateJSON, state); err != nil {
-		service.error(writer, http.StatusBadRequest, "invalid state cookie")
+		service.writer.WriteErrors(writer, http.StatusBadRequest, errAuthInvalidStateCookie)
 		return
 	}
 
 	// Validate the state ID
 	if request.URL.Query().Get("state") != state.ID {
-		service.error(writer, http.StatusBadRequest, "states do not match")
+		service.writer.WriteErrors(writer, http.StatusBadRequest, errAuthStatesDoNotMatch)
 		return
 	}
 
@@ -87,28 +116,28 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	// Retrieve the OAuth2 access token and extract and verify the ID token + nonce
 	oauth2Token, err := service.oidcOAuth2Config.Exchange(request.Context(), request.URL.Query().Get("code"))
 	if err != nil {
-		service.error(writer, http.StatusForbidden, "invalid login code (expired?)")
+		service.writer.WriteErrors(writer, http.StatusForbidden, errAuthInvalidLoginCode)
 		return
 	}
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		service.internalError(writer, errors.New("no 'id_token' field in OAuth2 access token; most likely an OIDC provider error"))
+		service.writer.WriteInternalError(writer, errors.New("no 'id_token' field in OAuth2 access token; most likely an OIDC provider error"))
 		return
 	}
 	idToken, err := service.oidcIDTokenVerifier.Verify(request.Context(), rawIDToken)
 	if err != nil {
-		service.internalError(writer, errors.New("received invalid ID token; most likely an OIDC provider error"))
+		service.writer.WriteInternalError(writer, errors.New("received invalid ID token; most likely an OIDC provider error"))
 		return
 	}
 	if idToken.Nonce != state.Nonce {
-		service.error(writer, http.StatusForbidden, "nonces do not match")
+		service.writer.WriteErrors(writer, http.StatusForbidden, errAuthInvalidNonce)
 		return
 	}
 
 	// Extract the session ID (sid) claim if it is set by the OP
 	claims := make(map[string]interface{})
 	if err = idToken.Claims(&claims); err != nil {
-		service.internalError(writer, err)
+		service.writer.WriteInternalError(writer, err)
 		return
 	}
 	sessionID := ""
@@ -121,7 +150,7 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	// Create a new session for the user
 	sessionToken, err := service.sessionStorage.Create(request.Context(), idToken.Subject, sessionID, idToken.Expiry.Unix())
 	if err != nil {
-		service.internalError(writer, err)
+		service.writer.WriteInternalError(writer, err)
 		return
 	}
 
@@ -140,12 +169,6 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	http.Redirect(writer, request, state.Afterwards, http.StatusFound)
 }
 
-// EndpointOIDCBackchannelLogout handles the 'POST /v1/auth/oidc/backchannel_logout' endpoint
-func (service *Service) EndpointOIDCBackchannelLogout(writer http.ResponseWriter, request *http.Request) {
-	// TODO: implement backchannel logout logic
-	service.error(writer, http.StatusNotImplemented, "not implemented yet")
-}
-
 // MiddlewareVerifySession makes sure that the requesting client has provided a valid session token.
 // Additionally, it injects the session object itself into the request context.
 func (service *Service) MiddlewareVerifySession(next http.HandlerFunc) http.HandlerFunc {
@@ -153,19 +176,19 @@ func (service *Service) MiddlewareVerifySession(next http.HandlerFunc) http.Hand
 		// Retrieve the session token cookie
 		cookie, err := request.Cookie(sessionTokenCookieName)
 		if err != nil {
-			service.error(writer, http.StatusUnauthorized, "unauthorized")
+			service.writer.WriteErrors(writer, http.StatusUnauthorized, schema.ErrUnauthorized)
 			return
 		}
 
 		// Retrieve the session itself and validate its expiration time
 		session, err := service.sessionStorage.GetByRawToken(request.Context(), cookie.Value)
 		if err != nil {
-			service.internalError(writer, err)
+			service.writer.WriteInternalError(writer, err)
 			return
 		}
 		if session == nil || session.Expires <= time.Now().Unix() {
 			unsetCookie(writer, sessionTokenCookieName)
-			service.error(writer, http.StatusUnauthorized, "unauthorized")
+			service.writer.WriteErrors(writer, http.StatusUnauthorized, schema.ErrUnauthorized)
 			return
 		}
 
