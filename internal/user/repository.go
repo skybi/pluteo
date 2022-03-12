@@ -1,6 +1,9 @@
 package user
 
-import "context"
+import (
+	"context"
+	"github.com/skybi/data-server/internal/apikey"
+)
 
 // Repository defines the user repository API
 type Repository interface {
@@ -27,6 +30,13 @@ type Create struct {
 // Update is used to update an existing user
 type Update struct {
 	DisplayName  *string
-	APIKeyPolicy *APIKeyPolicy
+	APIKeyPolicy *APIKeyPolicyUpdate
 	Restricted   *bool
+}
+
+// APIKeyPolicyUpdate is used to update the API key policy of an existing user
+type APIKeyPolicyUpdate struct {
+	MaxQuota            *int64
+	MaxRateLimit        *int
+	AllowedCapabilities *apikey.Capabilities
 }

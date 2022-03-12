@@ -18,8 +18,9 @@ var migrations embed.FS
 
 // Driver represents the PostgreSQL storage driver implementation
 type Driver struct {
-	dsn string
-	db  *pgxpool.Pool
+	dsn   string
+	db    *pgxpool.Pool
+	users *UserRepository
 }
 
 var _ storage.Driver = (*Driver)(nil)
@@ -54,13 +55,16 @@ func (driver *Driver) Initialize(ctx context.Context) error {
 		return err
 	}
 	driver.db = pool
+
+	// Initialize the repository implementations
+	driver.users = &UserRepository{db: pool}
+
 	return nil
 }
 
 // Users provides the PostgreSQL user repository implementation
 func (driver *Driver) Users() user.Repository {
-	//TODO implement me
-	panic("implement me")
+	return driver.users
 }
 
 // APIKeys provides the PostgreSQL API key repository implementation
@@ -71,6 +75,8 @@ func (driver *Driver) APIKeys() apikey.Repository {
 
 // Close discards the repository implementations and closes the database connection
 func (driver *Driver) Close() {
+	driver.users = nil
+
 	driver.db.Close()
 	driver.db = nil
 }
