@@ -3,6 +3,7 @@ package inmem
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"github.com/hashicorp/go-memdb"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/random"
@@ -79,7 +80,7 @@ func (driver *Driver) GetByRawToken(_ context.Context, rawToken string) (*sessio
 
 // Create creates a new session
 func (driver *Driver) Create(_ context.Context, userID, sessionID string, expires int64) (string, error) {
-	rawToken := random.String(tokenLength, random.CharsetAlphanumeric)
+	rawToken := random.String(tokenLength, random.CharsetTokens)
 	token := hashToken(rawToken)
 
 	ses := &session.Session{
@@ -149,7 +150,6 @@ func (driver *Driver) TerminateExpired(_ context.Context) (int, error) {
 }
 
 func hashToken(raw string) string {
-	data := []byte(raw)
-	sum := sha256.Sum256(data)
-	return string(sum[:])
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }

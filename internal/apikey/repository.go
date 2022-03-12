@@ -16,8 +16,7 @@ type Repository interface {
 	// GetByUserID retrieves all API keys of a specific user
 	GetByUserID(ctx context.Context, userID string) ([]*Key, error)
 
-	// Create creates a new API key.
-	// This method may hash the key field of the given key.
+	// Create creates a new API key
 	Create(ctx context.Context, create *Create) (*Key, error)
 
 	// Update updates an API key
@@ -30,6 +29,7 @@ type Repository interface {
 // Create is used to create a new API key
 type Create struct {
 	UserID       string
+	Description  string
 	Quota        int64
 	RateLimit    int
 	Capabilities Capabilities
@@ -37,6 +37,7 @@ type Create struct {
 
 // Update is used to update an existing API key
 type Update struct {
+	Description  *string
 	Quota        *int64
 	UsedQuota    *int64
 	RateLimit    *int

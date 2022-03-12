@@ -24,6 +24,7 @@ create table api_keys (
     key_id uuid not null,
     api_key text not null,
     user_id text not null,
+    description text not null,
     quota bigint not null default -1,
     used_quota bigint not null default 0,
     rate_limit int not null default -1,
