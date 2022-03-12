@@ -18,8 +18,26 @@ type Repository interface {
 
 	// Create creates a new API key.
 	// This method may hash the key field of the given key.
-	Create(ctx context.Context, key *Key) error
+	Create(ctx context.Context, create *Create) (*Key, error)
+
+	// Update updates an API key
+	Update(ctx context.Context, id uuid.UUID, update *Update) (*Key, error)
 
 	// Delete deletes an API key by its ID
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// Create is used to create a new API key
+type Create struct {
+	UserID       string
+	Quota        int64
+	RateLimit    int
+	Capabilities Capabilities
+}
+
+// Update is used to update an existing API key
+type Update struct {
+	Quota        *int64
+	RateLimit    *int
+	Capabilities *Capabilities
 }
