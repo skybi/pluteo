@@ -84,6 +84,7 @@ func (service *Service) Startup() error {
 	// Register the user controller endpoints
 	router.Get("/v1/users", withMiddlewares(service.EndpointGetUsers, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
 	router.Get("/v1/users/{id}", withMiddlewares(service.EndpointGetUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
+	router.Delete("/v1/users/{id}", withMiddlewares(service.EndpointDeleteUserData, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
 	router.Get("/v1/me", withMiddlewares(service.EndpointGetSelfUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
 	// Start up the server

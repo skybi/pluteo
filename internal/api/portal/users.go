@@ -54,6 +54,28 @@ func (service *Service) EndpointGetUser(writer http.ResponseWriter, request *htt
 	service.writer.WriteJSON(writer, obj)
 }
 
+// EndpointDeleteUserData handles the 'DELETE /v1/users/{id}' endpoint
+func (service *Service) EndpointDeleteUserData(writer http.ResponseWriter, request *http.Request) {
+	id := chi.URLParam(request, "id")
+
+	obj, err := service.Storage.Users().GetByID(request.Context(), id)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	if obj == nil {
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		return
+	}
+
+	if err := service.Storage.Users().Delete(request.Context(), obj.ID); err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
+}
+
 // EndpointGetSelfUser handles the 'GET /v1/me' endpoint
 func (service *Service) EndpointGetSelfUser(writer http.ResponseWriter, request *http.Request) {
 	obj := request.Context().Value(contextValueUser).(*user.User)
