@@ -9,6 +9,7 @@ import (
 	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/config"
+	"github.com/skybi/data-server/internal/storage"
 	"golang.org/x/oauth2"
 	"net/http"
 )
@@ -19,7 +20,10 @@ type Service struct {
 
 	Config *config.Config
 
+	Storage storage.Driver
+
 	oidcOAuth2Config    *oauth2.Config
+	oidcProvider        *oidc.Provider
 	oidcIDTokenVerifier *oidc.IDTokenVerifier
 	sessionStorage      session.Storage
 
@@ -49,6 +53,7 @@ func (service *Service) Startup() error {
 	if err != nil {
 		return err
 	}
+	service.oidcProvider = oidcProvider
 	service.oidcIDTokenVerifier = oidcProvider.Verifier(&oidc.Config{
 		ClientID: service.Config.OIDCClientID,
 	})

@@ -60,7 +60,7 @@ func (repo *UserRepository) Create(ctx context.Context, create *user.Create) (*u
 	// Create the user row itself
 	createUserQuery := `
 		insert into users (user_id, display_name, restricted, admin)
-		values ($1, $2, $3)
+		values ($1, $2, $3, $4)
 	`
 	_, err = tx.Exec(ctx, createUserQuery, create.ID, create.DisplayName, false, create.Admin)
 	if err != nil {

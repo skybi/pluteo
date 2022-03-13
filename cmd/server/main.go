@@ -42,7 +42,8 @@ func main() {
 	// Start up the portal & data APIs
 	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Msg("starting up portal & data APIs...")
 	apis := &api.Service{
-		Config: cfg,
+		Config:  cfg,
+		Storage: driver,
 	}
 	apiErrs := make(chan error, 1)
 	apis.Startup(apiErrs)

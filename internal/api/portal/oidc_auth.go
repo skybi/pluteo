@@ -6,8 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/schema"
+	"github.com/skybi/data-server/internal/litp"
 	"github.com/skybi/data-server/internal/random"
+	"github.com/skybi/data-server/internal/user"
+	"golang.org/x/oauth2"
 	"net/http"
 	"time"
 )
@@ -21,6 +25,14 @@ var (
 	loginStateCookieLifetime = int(time.Hour.Seconds())
 
 	contextValueSession = "session"
+	contextValueUser    = "user"
+
+	displayNameClaimChain = []string{
+		"preferred_username",
+		"nickname",
+		"given_name",
+		"name",
+	}
 )
 
 var (
@@ -134,16 +146,66 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 		return
 	}
 
-	// Extract the session ID (sid) claim if it is set by the OP
+	// Extract the token claims into a map
 	claims := make(map[string]interface{})
 	if err = idToken.Claims(&claims); err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return
 	}
-	sessionID := ""
-	if rawSID, ok := claims["sid"]; ok {
-		if sid, ok := rawSID.(string); ok {
-			sessionID = sid
+
+	// Extract the session ID claim if the provider provided one
+	sessionID, _ := extractFirstString(claims, "sid")
+
+	// Extract the display name to use out of the ID token claims (checking each claim out of displayNameClaimChain in order).
+	// If there is no claim in the ID token that provides a usable display name, call the userinfo endpoint and use the response.
+	displayName, found := extractFirstString(claims, displayNameClaimChain...)
+	if !found {
+		userInfo, err := service.oidcProvider.UserInfo(request.Context(), oauth2.StaticTokenSource(oauth2Token))
+		if err != nil {
+			service.writer.WriteInternalError(writer, err)
+			return
+		}
+
+		userInfoClaims := make(map[string]interface{})
+		if err := userInfo.Claims(&userInfoClaims); err != nil {
+			service.writer.WriteInternalError(writer, err)
+			return
+		}
+
+		displayName, found = extractFirstString(userInfoClaims, displayNameClaimChain...)
+	}
+	if !found {
+		displayName = sessionID
+		if displayName == "" {
+			displayName = "banana"
+		}
+	}
+
+	// Initialize or update the user's database entry
+	userObj, err := service.Storage.Users().GetByID(request.Context(), idToken.Subject)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	if userObj == nil {
+		userObj, err = service.Storage.Users().Create(request.Context(), &user.Create{
+			ID:           idToken.Subject,
+			DisplayName:  displayName,
+			APIKeyPolicy: user.DefaultAPIKeyPolicy(),
+			Admin:        false,
+		})
+		if err != nil {
+			service.writer.WriteInternalError(writer, err)
+			return
+		}
+	}
+	if userObj.DisplayName != displayName {
+		userObj, err = service.Storage.Users().Update(request.Context(), userObj.ID, &user.Update{
+			DisplayName: litp.String(displayName),
+		})
+		if err != nil {
+			service.writer.WriteInternalError(writer, err)
+			return
 		}
 	}
 
@@ -181,19 +243,46 @@ func (service *Service) MiddlewareVerifySession(next http.HandlerFunc) http.Hand
 		}
 
 		// Retrieve the session itself and validate its expiration time
-		session, err := service.sessionStorage.GetByRawToken(request.Context(), cookie.Value)
+		ses, err := service.sessionStorage.GetByRawToken(request.Context(), cookie.Value)
 		if err != nil {
 			service.writer.WriteInternalError(writer, err)
 			return
 		}
-		if session == nil || session.Expires <= time.Now().Unix() {
+		if ses == nil || ses.Expires <= time.Now().Unix() {
 			unsetCookie(writer, sessionTokenCookieName)
 			service.writer.WriteErrors(writer, http.StatusUnauthorized, schema.ErrUnauthorized)
 			return
 		}
 
 		// Delegate to the next handler
-		request = request.WithContext(context.WithValue(request.Context(), contextValueSession, session))
+		request = request.WithContext(context.WithValue(request.Context(), contextValueSession, ses))
+		next(writer, request)
+	}
+}
+
+// MiddlewareFetchUser fetches the authenticated user object and injects it into the request context
+func (service *Service) MiddlewareFetchUser(next http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		// Extract the session
+		ses, ok := request.Context().Value("session").(*session.Session)
+		if !ok {
+			service.writer.WriteInternalError(writer, errors.New("user initialization without session initialization"))
+			return
+		}
+
+		// Fetch the user object
+		userObj, err := service.Storage.Users().GetByID(request.Context(), ses.UserID)
+		if err != nil {
+			service.writer.WriteInternalError(writer, err)
+			return
+		}
+		if userObj == nil {
+			service.writer.WriteInternalError(writer, errors.New("valid session without user object"))
+			return
+		}
+
+		// Delegate to the next handler
+		request = request.WithContext(context.WithValue(request.Context(), contextValueUser, userObj))
 		next(writer, request)
 	}
 }
@@ -203,4 +292,15 @@ func unsetCookie(writer http.ResponseWriter, name string) {
 		Name:   name,
 		MaxAge: -1,
 	})
+}
+
+func extractFirstString(vals map[string]interface{}, keys ...string) (string, bool) {
+	for _, key := range keys {
+		if raw, ok := vals[key]; ok {
+			if val, ok := raw.(string); ok {
+				return val, true
+			}
+		}
+	}
+	return "", false
 }
