@@ -81,3 +81,18 @@ func (service *Service) EndpointGetSelfUser(writer http.ResponseWriter, request 
 	obj := request.Context().Value(contextValueUser).(*user.User)
 	service.writer.WriteJSON(writer, obj)
 }
+
+// EndpointDeleteSelfUserData handles the 'DELETE /v1/me' endpoint
+func (service *Service) EndpointDeleteSelfUserData(writer http.ResponseWriter, request *http.Request) {
+	obj := request.Context().Value(contextValueUser).(*user.User)
+	if err := service.Storage.Users().Delete(request.Context(), obj.ID); err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	unsetCookie(writer, sessionTokenCookieName)
+	if err := service.sessionStorage.TerminateByUserID(request.Context(), obj.ID); err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
