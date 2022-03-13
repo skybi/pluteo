@@ -59,10 +59,10 @@ func (repo *UserRepository) Create(ctx context.Context, create *user.Create) (*u
 
 	// Create the user row itself
 	createUserQuery := `
-		insert into users (user_id, display_name, restricted)
+		insert into users (user_id, display_name, restricted, admin)
 		values ($1, $2, $3)
 	`
-	_, err = tx.Exec(ctx, createUserQuery, create.ID, create.DisplayName, false)
+	_, err = tx.Exec(ctx, createUserQuery, create.ID, create.DisplayName, false, create.Admin)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +95,7 @@ func (repo *UserRepository) Create(ctx context.Context, create *user.Create) (*u
 		DisplayName:  create.DisplayName,
 		APIKeyPolicy: &cpy,
 		Restricted:   false,
+		Admin:        create.Admin,
 	}, nil
 }
 
@@ -108,13 +109,16 @@ func (repo *UserRepository) Update(ctx context.Context, id string, update *user.
 	defer tx.Rollback(ctx)
 
 	// Update the user object itself if needed
-	if update.DisplayName != nil || update.Restricted != nil {
+	if update.DisplayName != nil || update.Restricted != nil || update.Admin != nil {
 		query := squirrel.Update("users").Where(squirrel.Eq{"user_id": id})
 		if update.DisplayName != nil {
 			query = query.Set("display_name", *update.DisplayName)
 		}
 		if update.Restricted != nil {
 			query = query.Set("restricted", *update.Restricted)
+		}
+		if update.Admin != nil {
+			query = query.Set("admin", *update.Admin)
 		}
 
 		sql, values, err := query.PlaceholderFormat(squirrel.Dollar).ToSql()
@@ -167,7 +171,7 @@ func (repo *UserRepository) Delete(ctx context.Context, id string) error {
 
 func (repo *UserRepository) rowToUser(row pgx.Row) (*user.User, error) {
 	obj := new(user.User)
-	if err := row.Scan(&obj.ID, &obj.DisplayName, &obj.Restricted); err != nil {
+	if err := row.Scan(&obj.ID, &obj.DisplayName, &obj.Restricted, &obj.Admin); err != nil {
 		return nil, err
 	}
 	return obj, nil

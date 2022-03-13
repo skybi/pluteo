@@ -10,6 +10,7 @@ type User struct {
 	DisplayName  string        `json:"display_name"`
 	APIKeyPolicy *APIKeyPolicy `json:"api_key_policy"`
 	Restricted   bool          `json:"restricted"`
+	Admin        bool          `json:"admin"`
 }
 
 // APIKeyPolicy represents the user-specific policy to create API keys

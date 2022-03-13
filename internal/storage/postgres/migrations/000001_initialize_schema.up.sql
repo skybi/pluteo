@@ -8,6 +8,7 @@ create table users (
     user_id text not null,
     display_name text not null default '',
     restricted boolean not null default false,
+    admin boolean not null default false,
     primary key (user_id)
 );
 

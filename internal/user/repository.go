@@ -25,6 +25,7 @@ type Create struct {
 	ID           string
 	DisplayName  string
 	APIKeyPolicy *APIKeyPolicy
+	Admin        bool
 }
 
 // Update is used to update an existing user
@@ -32,6 +33,7 @@ type Update struct {
 	DisplayName  *string
 	APIKeyPolicy *APIKeyPolicyUpdate
 	Restricted   *bool
+	Admin        *bool
 }
 
 // APIKeyPolicyUpdate is used to update the API key policy of an existing user

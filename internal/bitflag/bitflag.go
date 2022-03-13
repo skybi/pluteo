@@ -9,6 +9,9 @@ type Container uint
 // EmptyContainer provides an empty bitflag container
 const EmptyContainer Container = 0
 
+// WildcardContainer provides a bitflag container with all flags set
+const WildcardContainer = Container(^uint(0))
+
 // Has checks if the container has all the given flags set
 func (cur Container) Has(flags ...Flag) bool {
 	for _, flag := range flags {
