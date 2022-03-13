@@ -79,9 +79,12 @@ func (service *Service) Startup() error {
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
+	// TODO: Implement backchannel logout
+
+	// Register the user controller endpoints
 	router.Get("/v1/users", withMiddlewares(service.EndpointGetUsers, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
 	router.Get("/v1/users/{id}", withMiddlewares(service.EndpointGetUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
-	// TODO: Implement backchannel logout
+	router.Get("/v1/me", withMiddlewares(service.EndpointGetSelfUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
 	// Start up the server
 	server := &http.Server{

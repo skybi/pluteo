@@ -4,6 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/api/validation"
+	"github.com/skybi/data-server/internal/user"
 	"math"
 	"net/http"
 )
@@ -50,5 +51,11 @@ func (service *Service) EndpointGetUser(writer http.ResponseWriter, request *htt
 		return
 	}
 
+	service.writer.WriteJSON(writer, obj)
+}
+
+// EndpointGetSelfUser handles the 'GET /v1/me' endpoint
+func (service *Service) EndpointGetSelfUser(writer http.ResponseWriter, request *http.Request) {
+	obj := request.Context().Value(contextValueUser).(*user.User)
 	service.writer.WriteJSON(writer, obj)
 }
