@@ -8,7 +8,7 @@ import (
 type User struct {
 	ID           string        `json:"id"`
 	DisplayName  string        `json:"display_name"`
-	APIKeyPolicy *APIKeyPolicy `json:"api_key_policy"`
+	APIKeyPolicy *APIKeyPolicy `json:"api_key_policy,omitempty"`
 	Restricted   bool          `json:"restricted"`
 	Admin        bool          `json:"admin"`
 }

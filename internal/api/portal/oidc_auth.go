@@ -287,6 +287,22 @@ func (service *Service) MiddlewareFetchUser(next http.HandlerFunc) http.HandlerF
 	}
 }
 
+// MiddlewareCheckAdmin validates that the requesting client is an admin
+func (service *Service) MiddlewareCheckAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		userObj, ok := request.Context().Value(contextValueUser).(*user.User)
+		if !ok {
+			service.writer.WriteInternalError(writer, errors.New("admin check without user validation"))
+			return
+		}
+		if !userObj.Admin {
+			service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+			return
+		}
+		next(writer, request)
+	}
+}
+
 func unsetCookie(writer http.ResponseWriter, name string) {
 	http.SetCookie(writer, &http.Cookie{
 		Name:   name,

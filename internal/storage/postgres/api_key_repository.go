@@ -58,7 +58,7 @@ func (repo *APIKeyRepository) GetByUserID(ctx context.Context, userID string) ([
 		return nil, err
 	}
 
-	var keys []*apikey.Key
+	keys := []*apikey.Key{}
 	for rows.Next() {
 		key, err := repo.rowToAPIKey(rows)
 		if err != nil {

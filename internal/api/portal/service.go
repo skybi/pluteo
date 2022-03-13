@@ -77,6 +77,7 @@ func (service *Service) Startup() error {
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
+	router.Get("/v1/users", withMiddlewares(service.EndpointGetUsers, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
 	// TODO: Implement backchannel logout
 
 	// Start up the server
@@ -94,4 +95,14 @@ func (service *Service) Shutdown() {
 		service.server.Close()
 		service.server = nil
 	}
+}
+
+type middleware func(http.HandlerFunc) http.HandlerFunc
+
+func withMiddlewares(handler http.HandlerFunc, middlewares ...middleware) http.HandlerFunc {
+	final := handler
+	for i := len(middlewares); i > 0; i-- {
+		final = middlewares[i-1](final)
+	}
+	return final
 }

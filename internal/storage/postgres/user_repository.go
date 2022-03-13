@@ -20,6 +20,51 @@ type UserRepository struct {
 
 var _ user.Repository = (*UserRepository)(nil)
 
+// Get retrieves multiple users.
+// The returned users will be missing the API key policy field. Use GetByID explicitly for that.
+func (repo *UserRepository) Get(ctx context.Context, offset, limit uint64) ([]*user.User, uint64, error) {
+	query := squirrel.Select("*").From("users")
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	} else if limit <= 0 {
+		query = query.Limit(10)
+	}
+	sql, vals, err := query.ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var n uint64
+	if err := repo.db.QueryRow(ctx, "select count(*) from users").Scan(&n); err != nil {
+		return nil, 0, err
+	}
+	if n == 0 {
+		return []*user.User{}, 0, nil
+	}
+
+	rows, err := repo.db.Query(ctx, sql, vals...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []*user.User{}, n, nil
+		}
+		return nil, 0, err
+	}
+
+	users := []*user.User{}
+	for rows.Next() {
+		obj, err := repo.rowToUser(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		users = append(users, obj)
+	}
+
+	return users, n, nil
+}
+
 // GetByID retrieves a user by their ID
 func (repo *UserRepository) GetByID(ctx context.Context, id string) (*user.User, error) {
 	// Retrieve the user row itself

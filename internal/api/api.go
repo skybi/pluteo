@@ -12,7 +12,8 @@ import (
 type Service struct {
 	Config  *config.Config
 	Storage storage.Driver
-	portal  *portal.Service
+
+	portal *portal.Service
 }
 
 // Startup starts up the portal & data APIs
