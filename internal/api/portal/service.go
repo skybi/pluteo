@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
@@ -41,6 +42,7 @@ func (service *Service) Startup() error {
 
 	// Create the HTTP router
 	router := chi.NewRouter()
+	router.Use(middleware.RedirectSlashes)
 	router.NotFound(func(writer http.ResponseWriter, _ *http.Request) {
 		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
 	})
@@ -78,6 +80,7 @@ func (service *Service) Startup() error {
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
 	router.Get("/v1/users", withMiddlewares(service.EndpointGetUsers, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
+	router.Get("/v1/users/{id}", withMiddlewares(service.EndpointGetUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
 	// TODO: Implement backchannel logout
 
 	// Start up the server
@@ -97,10 +100,8 @@ func (service *Service) Shutdown() {
 	}
 }
 
-type middleware func(http.HandlerFunc) http.HandlerFunc
-
-func withMiddlewares(handler http.HandlerFunc, middlewares ...middleware) http.HandlerFunc {
-	final := handler
+func withMiddlewares(end http.HandlerFunc, middlewares ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
+	final := end
 	for i := len(middlewares); i > 0; i-- {
 		final = middlewares[i-1](final)
 	}
