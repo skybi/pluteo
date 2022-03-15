@@ -12,7 +12,7 @@ var (
 		return &schema.Error{
 			Type:    "validation.query.parameter.missing",
 			Message: fmt.Sprintf("The query parameter '%s' is required but was not present in the request.", name),
-			Details: map[string]interface{}{
+			Details: map[string]any{
 				"parameter": name,
 			},
 		}
@@ -21,7 +21,7 @@ var (
 		return &schema.Error{
 			Type:    "validation.query.parameter.invalidType",
 			Message: fmt.Sprintf("The query parameter '%s' ('%s') could no be assigned to the required type (%s).", name, value, expectedType),
-			Details: map[string]interface{}{
+			Details: map[string]any{
 				"parameter":     name,
 				"value":         value,
 				"expected_type": expectedType,
@@ -39,7 +39,7 @@ var (
 		return &schema.Error{
 			Type:    "validation.query.parameter.number.outOfRange",
 			Message: fmt.Sprintf("The query parameter '%s' is out of the required range (%s).", name, comparison),
-			Details: map[string]interface{}{
+			Details: map[string]any{
 				"parameter": name,
 				"value":     value,
 				"min":       min,

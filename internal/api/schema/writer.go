@@ -11,7 +11,7 @@ type Writer struct {
 }
 
 // WriteJSONCode writes the JSON representation of value to the given response writer using the given HTTP status code
-func (writer *Writer) WriteJSONCode(rw http.ResponseWriter, code int, value interface{}) {
+func (writer *Writer) WriteJSONCode(rw http.ResponseWriter, code int, value any) {
 	val, _ := json.Marshal(value)
 	rw.WriteHeader(code)
 	rw.Write(val)
@@ -19,7 +19,7 @@ func (writer *Writer) WriteJSONCode(rw http.ResponseWriter, code int, value inte
 
 // WriteJSON writes the JSON representation of value to the given response writer.
 // This method sends 200 OK as the HTTP status code; use WriteJSONCode to use a different one.
-func (writer *Writer) WriteJSON(rw http.ResponseWriter, value interface{}) {
+func (writer *Writer) WriteJSON(rw http.ResponseWriter, value any) {
 	writer.WriteJSONCode(rw, http.StatusOK, value)
 }
 
@@ -34,7 +34,7 @@ func (writer *Writer) WriteErrors(rw http.ResponseWriter, code int, errors ...*E
 	}
 	for _, err := range response.Errors {
 		if err.Details == nil {
-			err.Details = map[string]interface{}{}
+			err.Details = map[string]any{}
 		}
 	}
 	writer.WriteJSONCode(rw, code, response)

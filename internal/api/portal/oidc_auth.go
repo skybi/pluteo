@@ -8,7 +8,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/schema"
-	"github.com/skybi/data-server/internal/litp"
 	"github.com/skybi/data-server/internal/random"
 	"github.com/skybi/data-server/internal/user"
 	"golang.org/x/oauth2"
@@ -39,27 +38,27 @@ var (
 	errAuthNoLoginFlowInitiated = &schema.Error{
 		Type:    "portal.auth.noLoginFlowInitiated",
 		Message: "No login flow initiated.",
-		Details: map[string]interface{}{},
+		Details: map[string]any{},
 	}
 	errAuthInvalidStateCookie = &schema.Error{
 		Type:    "portal.auth.invalidStateCookie",
 		Message: "Invalid state cookie.",
-		Details: map[string]interface{}{},
+		Details: map[string]any{},
 	}
 	errAuthStatesDoNotMatch = &schema.Error{
 		Type:    "portal.auth.statesDoNotMatch",
 		Message: "States do not match.",
-		Details: map[string]interface{}{},
+		Details: map[string]any{},
 	}
 	errAuthInvalidLoginCode = &schema.Error{
 		Type:    "portal.auth.invalidLoginCode",
 		Message: "Invalid login code. It may be expired.",
-		Details: map[string]interface{}{},
+		Details: map[string]any{},
 	}
 	errAuthInvalidNonce = &schema.Error{
 		Type:    "portal.auth.invalidNonce",
 		Message: "Invalid nonce.",
-		Details: map[string]interface{}{},
+		Details: map[string]any{},
 	}
 )
 
@@ -147,7 +146,7 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	}
 
 	// Extract the token claims into a map
-	claims := make(map[string]interface{})
+	claims := make(map[string]any)
 	if err = idToken.Claims(&claims); err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return
@@ -166,7 +165,7 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 			return
 		}
 
-		userInfoClaims := make(map[string]interface{})
+		userInfoClaims := make(map[string]any)
 		if err := userInfo.Claims(&userInfoClaims); err != nil {
 			service.writer.WriteInternalError(writer, err)
 			return
@@ -201,7 +200,7 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 	}
 	if userObj.DisplayName != displayName {
 		userObj, err = service.Storage.Users().Update(request.Context(), userObj.ID, &user.Update{
-			DisplayName: litp.String(displayName),
+			DisplayName: &displayName,
 		})
 		if err != nil {
 			service.writer.WriteInternalError(writer, err)
@@ -310,7 +309,7 @@ func unsetCookie(writer http.ResponseWriter, name string) {
 	})
 }
 
-func extractFirstString(vals map[string]interface{}, keys ...string) (string, bool) {
+func extractFirstString(vals map[string]any, keys ...string) (string, bool) {
 	for _, key := range keys {
 		if raw, ok := vals[key]; ok {
 			if val, ok := raw.(string); ok {

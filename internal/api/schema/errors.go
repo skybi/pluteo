@@ -1,6 +1,6 @@
 package schema
 
-var emptyMap = map[string]interface{}{}
+var emptyMap = map[string]any{}
 
 var (
 	ErrInternal = &Error{
@@ -38,7 +38,7 @@ type ErrorResponse struct {
 
 // Error represents a single error present in the ErrorResponse
 type Error struct {
-	Type    string                 `json:"type"`
-	Message string                 `json:"message"`
-	Details map[string]interface{} `json:"details"`
+	Type    string         `json:"type"`
+	Message string         `json:"message"`
+	Details map[string]any `json:"details"`
 }
