@@ -20,7 +20,7 @@ var (
 	errQueryParameterInvalidType = func(name, value, expectedType string) *schema.Error {
 		return &schema.Error{
 			Type:    "validation.query.parameter.invalidType",
-			Message: fmt.Sprintf("The query parameter '%s' ('%s') could no be assigned to the required type (%s).", name, value, expectedType),
+			Message: fmt.Sprintf("The query parameter '%s' ('%s') could not be assigned to the required type (%s).", name, value, expectedType),
 			Details: map[string]any{
 				"parameter":     name,
 				"value":         value,
