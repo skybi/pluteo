@@ -20,10 +20,17 @@ type UserRepository struct {
 
 var _ user.Repository = (*UserRepository)(nil)
 
-// Get retrieves multiple users.
-// The returned users will be missing the API key policy field. Use GetByID explicitly for that.
+// Get retrieves multiple users
 func (repo *UserRepository) Get(ctx context.Context, offset, limit uint64) ([]*user.User, uint64, error) {
-	query := squirrel.Select("*").From("users")
+	query := squirrel.Select(
+		"users.user_id",
+		"users.display_name",
+		"users.restricted",
+		"users.admin",
+		"user_api_key_policies.max_quota",
+		"user_api_key_policies.max_rate_limit",
+		"user_api_key_policies.allowed_capabilities",
+	).From("users").JoinClause("INNER JOIN user_api_key_policies ON users.user_id = user_api_key_policies.user_id")
 	if offset > 0 {
 		query = query.Offset(offset)
 	}
@@ -55,7 +62,18 @@ func (repo *UserRepository) Get(ctx context.Context, offset, limit uint64) ([]*u
 
 	users := []*user.User{}
 	for rows.Next() {
-		obj, err := repo.rowToUser(rows)
+		obj := &user.User{
+			APIKeyPolicy: &user.APIKeyPolicy{},
+		}
+		err = rows.Scan(
+			&obj.ID,
+			&obj.DisplayName,
+			&obj.Restricted,
+			&obj.Admin,
+			&obj.APIKeyPolicy.MaxQuota,
+			&obj.APIKeyPolicy.MaxRateLimit,
+			&obj.APIKeyPolicy.AllowedCapabilities,
+		)
 		if err != nil {
 			return nil, 0, err
 		}

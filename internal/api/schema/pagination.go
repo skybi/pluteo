@@ -11,7 +11,7 @@ type PaginationMetadata struct {
 	Offset        uint64 `json:"offset"`
 	Limit         uint64 `json:"limit"`
 	TotalCount    uint64 `json:"total_count"`
-	IncludedCount uint64 `json:"included_count"`
+	IncludedCount int    `json:"included_count"`
 }
 
 // BuildPaginatedResponse builds a unified paginated API response
@@ -21,7 +21,7 @@ func BuildPaginatedResponse[T any](offset, limit, totalCount uint64, data []T) *
 			Offset:        offset,
 			Limit:         limit,
 			TotalCount:    totalCount,
-			IncludedCount: uint64(len(data)),
+			IncludedCount: len(data),
 		},
 		Data: data,
 	}

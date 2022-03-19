@@ -7,8 +7,7 @@ import (
 
 // Repository defines the user repository API
 type Repository interface {
-	// Get retrieves multiple users.
-	// The returned users will be missing the API key policy field. Use GetByID explicitly for that.
+	// Get retrieves multiple users
 	Get(ctx context.Context, offset, limit uint64) ([]*User, uint64, error)
 
 	// GetByID retrieves a user by their ID
