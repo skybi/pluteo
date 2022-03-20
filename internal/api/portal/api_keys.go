@@ -1,15 +1,116 @@
 package portal
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/api/validation"
 	"github.com/skybi/data-server/internal/apikey"
+	"github.com/skybi/data-server/internal/bitflag"
 	"github.com/skybi/data-server/internal/user"
 	"math"
 	"net/http"
 )
+
+var (
+	errAPIKeyQuotaNotAllowed = func(requested, max int64) *schema.Error {
+		return &schema.Error{
+			Type:    "portal.apiKey.quotaNotAllowed",
+			Message: fmt.Sprintf("The requested API key quota (%d) is not allowed by the clients API key policy (max allowed: %d).", requested, max),
+			Details: map[string]any{
+				"requested":   requested,
+				"max_allowed": max,
+			},
+		}
+	}
+	errAPIKeyRateLimitNotAllowed = func(requested, max int) *schema.Error {
+		return &schema.Error{
+			Type:    "portal.apiKey.rateLimitNotAllowed",
+			Message: fmt.Sprintf("The requested API key rate limit (%d) is not allowed by the clients API key policy (max allowed: %d).", requested, max),
+			Details: map[string]any{
+				"requested":   requested,
+				"max_allowed": max,
+			},
+		}
+	}
+	errAPIKeyCapabilitiesNotAllowed = func(requested, allowed bitflag.Container) *schema.Error {
+		return &schema.Error{
+			Type:    "portal.apiKey.capabilitiesNotAllowed",
+			Message: "The requested API key capabilities are not allowed by the clients API key policy.",
+			Details: map[string]any{
+				"requested":  requested,
+				"allowed":    allowed,
+				"disallowed": requested & ^allowed,
+			},
+		}
+	}
+)
+
+type endpointCreateAPIKeyRequestPayload struct {
+	Description  *string            `json:"description"`
+	Quota        *int64             `json:"quota" required:"true"`
+	RateLimit    *int               `json:"rate_limit" required:"true"`
+	Capabilities *bitflag.Container `json:"capabilities" required:"true"`
+}
+
+// EndpointCreateAPIKey handles the 'POST /v1/api_keys' endpoint
+func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request *http.Request) {
+	payload, validationErrs, err := validation.UnmarshalBody[endpointCreateAPIKeyRequestPayload](request)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	if len(validationErrs) > 0 {
+		service.writer.WriteErrors(writer, http.StatusBadRequest, validationErrs...)
+		return
+	}
+	if *payload.Quota < 0 {
+		*payload.Quota = -1
+	}
+	if *payload.RateLimit < 0 {
+		*payload.RateLimit = -1
+	}
+
+	client := request.Context().Value(contextValueUser).(*user.User)
+	if !client.Admin {
+		var policyErrs []*schema.Error
+
+		if !client.APIKeyPolicy.ValidateQuota(*payload.Quota) {
+			policyErrs = append(policyErrs, errAPIKeyQuotaNotAllowed(*payload.Quota, client.APIKeyPolicy.MaxQuota))
+		}
+		if !client.APIKeyPolicy.ValidateRateLimit(*payload.RateLimit) {
+			policyErrs = append(policyErrs, errAPIKeyRateLimitNotAllowed(*payload.RateLimit, client.APIKeyPolicy.MaxRateLimit))
+		}
+		if !client.APIKeyPolicy.ValidateCapabilities(*payload.Capabilities) {
+			policyErrs = append(policyErrs, errAPIKeyCapabilitiesNotAllowed(*payload.Capabilities, client.APIKeyPolicy.AllowedCapabilities))
+		}
+
+		if len(policyErrs) > 0 {
+			service.writer.WriteErrors(writer, http.StatusForbidden, policyErrs...)
+			return
+		}
+	}
+
+	create := &apikey.Create{
+		UserID:       client.ID,
+		Description:  "",
+		Quota:        *payload.Quota,
+		RateLimit:    *payload.RateLimit,
+		Capabilities: *payload.Capabilities,
+	}
+	if payload.Description != nil {
+		// TODO: Strip length
+		create.Description = *payload.Description
+	}
+
+	key, err := service.Storage.APIKeys().Create(request.Context(), create)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	service.writer.WriteJSONCode(writer, http.StatusCreated, key)
+}
 
 // EndpointGetAPIKeys handles the 'GET /v1/api_keys?offset={number?:0}&limit={number?:10}&user_id={string?}' endpoint
 func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *http.Request) {
@@ -86,4 +187,43 @@ func (service *Service) EndpointGetAPIKey(writer http.ResponseWriter, request *h
 	}
 
 	service.writer.WriteJSON(writer, obj)
+}
+
+// EndpointDeleteAPIKey handles the 'DELETE /v1/api_keys/{id}' endpoint
+func (service *Service) EndpointDeleteAPIKey(writer http.ResponseWriter, request *http.Request) {
+	client := request.Context().Value(contextValueUser).(*user.User)
+
+	id := chi.URLParam(request, "id")
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		if client.Admin {
+			service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		} else {
+			service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		}
+		return
+	}
+
+	obj, err := service.Storage.APIKeys().GetByID(request.Context(), uid)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	if !client.Admin && (obj == nil || obj.UserID != client.ID) {
+		service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		return
+	}
+
+	if obj == nil {
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		return
+	}
+
+	if err := service.Storage.APIKeys().Delete(request.Context(), obj.ID); err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }

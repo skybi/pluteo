@@ -90,8 +90,10 @@ func (service *Service) Startup() error {
 	router.Delete("/v1/me", withMiddlewares(service.EndpointDeleteSelfUserData, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
 	// Register the API key controller endpoints
+	router.Post("/v1/api_keys", withMiddlewares(service.EndpointCreateAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 	router.Get("/v1/api_keys", withMiddlewares(service.EndpointGetAPIKeys, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 	router.Get("/v1/api_keys/{id}", withMiddlewares(service.EndpointGetAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
+	router.Delete("/v1/api_keys/{id}", withMiddlewares(service.EndpointDeleteAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
 	// Start up the server
 	server := &http.Server{
