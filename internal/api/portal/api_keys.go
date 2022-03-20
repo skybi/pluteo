@@ -1,6 +1,8 @@
 package portal
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/api/validation"
 	"github.com/skybi/data-server/internal/apikey"
@@ -28,9 +30,9 @@ func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *
 		return
 	}
 
-	client := request.Context().Value(contextValueUser).(*user.User)
-
 	userID := request.URL.Query().Get("user_id")
+
+	client := request.Context().Value(contextValueUser).(*user.User)
 	if !client.Admin && userID != client.ID {
 		service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
 		return
@@ -50,4 +52,38 @@ func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *
 	}
 
 	service.writer.WriteJSON(writer, schema.BuildPaginatedResponse(uint64(offset), uint64(limit), n, keys))
+}
+
+// EndpointGetAPIKey handles the 'GET /v1/api_keys/{id}' endpoint
+func (service *Service) EndpointGetAPIKey(writer http.ResponseWriter, request *http.Request) {
+	client := request.Context().Value(contextValueUser).(*user.User)
+
+	id := chi.URLParam(request, "id")
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		if client.Admin {
+			service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		} else {
+			service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		}
+		return
+	}
+
+	obj, err := service.Storage.APIKeys().GetByID(request.Context(), uid)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	if !client.Admin && (obj == nil || obj.UserID != client.ID) {
+		service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		return
+	}
+
+	if obj == nil {
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		return
+	}
+
+	service.writer.WriteJSON(writer, obj)
 }

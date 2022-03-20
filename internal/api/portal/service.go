@@ -91,6 +91,7 @@ func (service *Service) Startup() error {
 
 	// Register the API key controller endpoints
 	router.Get("/v1/api_keys", withMiddlewares(service.EndpointGetAPIKeys, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
+	router.Get("/v1/api_keys/{id}", withMiddlewares(service.EndpointGetAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
 	// Start up the server
 	server := &http.Server{
