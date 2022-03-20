@@ -195,6 +195,96 @@ func (service *Service) EndpointGetAPIKey(writer http.ResponseWriter, request *h
 	service.writer.WriteJSON(writer, obj)
 }
 
+type endpointEditAPIKeyRequestPayload struct {
+	Description  *string            `json:"description"`
+	Quota        *int64             `json:"quota"`
+	RateLimit    *int               `json:"rate_limit"`
+	Capabilities *bitflag.Container `json:"capabilities"`
+}
+
+// EndpointEditAPIKey handles the 'PATCH /v1/api_keys/{id}' endpoint
+func (service *Service) EndpointEditAPIKey(writer http.ResponseWriter, request *http.Request) {
+	client := request.Context().Value(contextValueUser).(*user.User)
+
+	id := chi.URLParam(request, "id")
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		if client.Admin {
+			service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		} else {
+			service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		}
+		return
+	}
+
+	obj, err := service.Storage.APIKeys().GetByID(request.Context(), uid)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	if !client.Admin && (obj == nil || obj.UserID != client.ID) {
+		service.writer.WriteErrors(writer, http.StatusForbidden, schema.ErrForbidden)
+		return
+	}
+
+	if obj == nil {
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		return
+	}
+
+	payload, validationErrs, err := validation.UnmarshalBody[endpointEditAPIKeyRequestPayload](request)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	if len(validationErrs) > 0 {
+		service.writer.WriteErrors(writer, http.StatusBadRequest, validationErrs...)
+		return
+	}
+	if payload.Quota != nil && *payload.Quota < 0 {
+		*payload.Quota = -1
+	}
+	if payload.RateLimit != nil && *payload.RateLimit < 0 {
+		*payload.RateLimit = -1
+	}
+
+	if !client.Admin {
+		var policyErrs []*schema.Error
+
+		if payload.Quota != nil && !client.APIKeyPolicy.ValidateQuota(*payload.Quota) {
+			policyErrs = append(policyErrs, errAPIKeyQuotaNotAllowed(*payload.Quota, client.APIKeyPolicy.MaxQuota))
+		}
+		if payload.RateLimit != nil && !client.APIKeyPolicy.ValidateRateLimit(*payload.RateLimit) {
+			policyErrs = append(policyErrs, errAPIKeyRateLimitNotAllowed(*payload.RateLimit, client.APIKeyPolicy.MaxRateLimit))
+		}
+		if payload.Capabilities != nil && !client.APIKeyPolicy.ValidateCapabilities(*payload.Capabilities) {
+			policyErrs = append(policyErrs, errAPIKeyCapabilitiesNotAllowed(*payload.Capabilities, client.APIKeyPolicy.AllowedCapabilities))
+		}
+
+		if len(policyErrs) > 0 {
+			service.writer.WriteErrors(writer, http.StatusForbidden, policyErrs...)
+			return
+		}
+	}
+
+	update := &apikey.Update{
+		Description:  payload.Description, // TODO: Strip length
+		Quota:        payload.Quota,
+		UsedQuota:    nil,
+		RateLimit:    payload.RateLimit,
+		Capabilities: payload.Capabilities,
+	}
+
+	newObj, err := service.Storage.APIKeys().Update(request.Context(), obj.ID, update)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+	newObj.Key = ""
+	service.writer.WriteJSONCode(writer, http.StatusOK, newObj)
+}
+
 // EndpointDeleteAPIKey handles the 'DELETE /v1/api_keys/{id}' endpoint
 func (service *Service) EndpointDeleteAPIKey(writer http.ResponseWriter, request *http.Request) {
 	client := request.Context().Value(contextValueUser).(*user.User)
