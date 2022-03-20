@@ -89,6 +89,9 @@ func (service *Service) Startup() error {
 	router.Get("/v1/me", withMiddlewares(service.EndpointGetSelfUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 	router.Delete("/v1/me", withMiddlewares(service.EndpointDeleteSelfUserData, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
 
+	// Register the API key controller endpoints
+	router.Get("/v1/api_keys", withMiddlewares(service.EndpointGetAPIKeys, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
+
 	// Start up the server
 	server := &http.Server{
 		Addr:    service.Config.PortalAPIListenAddress,

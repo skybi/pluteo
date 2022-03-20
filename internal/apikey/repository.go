@@ -8,14 +8,17 @@ import (
 
 // Repository defines the API key repository API
 type Repository interface {
+	// Get retrieves multiple API keys
+	Get(ctx context.Context, offset, limit uint64) ([]*Key, uint64, error)
+
+	// GetByUserID retrieves multiple API keys of a specific user
+	GetByUserID(ctx context.Context, userID string, offset, limit uint64) ([]*Key, uint64, error)
+
 	// GetByID retrieves an API key by its ID
 	GetByID(ctx context.Context, id uuid.UUID) (*Key, error)
 
 	// GetByRawKey retrieves an API key by the raw bearer token
 	GetByRawKey(ctx context.Context, key string) (*Key, error)
-
-	// GetByUserID retrieves all API keys of a specific user
-	GetByUserID(ctx context.Context, userID string) ([]*Key, error)
 
 	// Create creates a new API key
 	Create(ctx context.Context, create *Create) (*Key, error)

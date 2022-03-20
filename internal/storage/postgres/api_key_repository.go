@@ -22,6 +22,94 @@ type APIKeyRepository struct {
 
 var _ apikey.Repository = (*APIKeyRepository)(nil)
 
+// Get retrieves multiple API keys
+func (repo *APIKeyRepository) Get(ctx context.Context, offset, limit uint64) ([]*apikey.Key, uint64, error) {
+	query := squirrel.Select("*").From("api_keys")
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	} else if limit <= 0 {
+		query = query.Limit(10)
+	}
+	sql, vals, err := query.PlaceholderFormat(squirrel.Dollar).ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var n uint64
+	if err := repo.db.QueryRow(ctx, "select count(*) from api_keys").Scan(&n); err != nil {
+		return nil, 0, err
+	}
+	if n == 0 {
+		return []*apikey.Key{}, 0, nil
+	}
+
+	rows, err := repo.db.Query(ctx, sql, vals...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []*apikey.Key{}, n, nil
+		}
+		return nil, 0, err
+	}
+
+	keys := []*apikey.Key{}
+	for rows.Next() {
+		key, err := repo.rowToAPIKey(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		keys = append(keys, key)
+	}
+
+	return keys, n, nil
+}
+
+// GetByUserID retrieves multiple API keys of a specific user
+func (repo *APIKeyRepository) GetByUserID(ctx context.Context, userID string, offset, limit uint64) ([]*apikey.Key, uint64, error) {
+	query := squirrel.Select("*").From("api_keys").Where(squirrel.Eq{"user_id": userID})
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	} else if limit <= 0 {
+		query = query.Limit(10)
+	}
+	sql, vals, err := query.PlaceholderFormat(squirrel.Dollar).ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var n uint64
+	if err := repo.db.QueryRow(ctx, "select count(*) from api_keys where user_id = $1", userID).Scan(&n); err != nil {
+		return nil, 0, err
+	}
+	if n == 0 {
+		return []*apikey.Key{}, 0, nil
+	}
+
+	rows, err := repo.db.Query(ctx, sql, vals...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []*apikey.Key{}, n, nil
+		}
+		return nil, 0, err
+	}
+
+	keys := []*apikey.Key{}
+	for rows.Next() {
+		key, err := repo.rowToAPIKey(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		keys = append(keys, key)
+	}
+
+	return keys, n, nil
+}
+
 // GetByID retrieves an API key by its ID
 func (repo *APIKeyRepository) GetByID(ctx context.Context, id uuid.UUID) (*apikey.Key, error) {
 	row := repo.db.QueryRow(ctx, "select * from api_keys where key_id = $1", id)
@@ -46,28 +134,6 @@ func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*api
 		return nil, err
 	}
 	return obj, nil
-}
-
-// GetByUserID retrieves all API keys of a specific user
-func (repo *APIKeyRepository) GetByUserID(ctx context.Context, userID string) ([]*apikey.Key, error) {
-	rows, err := repo.db.Query(ctx, "select * from api_keys where user_id = $1", userID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return []*apikey.Key{}, nil
-		}
-		return nil, err
-	}
-
-	keys := []*apikey.Key{}
-	for rows.Next() {
-		key, err := repo.rowToAPIKey(rows)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
-	}
-
-	return keys, nil
 }
 
 // Create creates a new API key
