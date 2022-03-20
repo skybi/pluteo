@@ -152,6 +152,10 @@ func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *
 		return
 	}
 
+	for _, key := range keys {
+		key.Key = ""
+	}
+
 	service.writer.WriteJSON(writer, schema.BuildPaginatedResponse(uint64(offset), uint64(limit), n, keys))
 }
 
@@ -185,6 +189,8 @@ func (service *Service) EndpointGetAPIKey(writer http.ResponseWriter, request *h
 		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
 		return
 	}
+
+	obj.Key = ""
 
 	service.writer.WriteJSON(writer, obj)
 }
