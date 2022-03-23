@@ -12,6 +12,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.2
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/go-chi/cors v1.2.0
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-memdb v1.3.2

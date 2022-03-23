@@ -5,6 +5,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
@@ -43,6 +44,19 @@ func (service *Service) Startup() error {
 	// Create the HTTP router
 	router := chi.NewRouter()
 	router.Use(middleware.RedirectSlashes)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{service.Config.PortalAPIAllowedOrigin},
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}))
 	router.NotFound(func(writer http.ResponseWriter, _ *http.Request) {
 		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
 	})

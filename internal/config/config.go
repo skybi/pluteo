@@ -14,6 +14,7 @@ type Config struct {
 
 	PortalAPIListenAddress string `default:":8081" split_words:"true"`
 	PortalAPIBaseAddress   string `default:"http://localhost:8081" split_words:"true"`
+	PortalAPIAllowedOrigin string `default:"http://localhost:3000" split_words:"true"`
 
 	OIDCProviderURL  string `split_words:"true"`
 	OIDCClientID     string `split_words:"true"`
