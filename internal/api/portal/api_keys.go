@@ -5,7 +5,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/api/schema"
-	"github.com/skybi/data-server/internal/api/validation"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/bitflag"
 	"github.com/skybi/data-server/internal/user"
@@ -56,7 +55,7 @@ type endpointCreateAPIKeyRequestPayload struct {
 
 // EndpointCreateAPIKey handles the 'POST /v1/api_keys' endpoint
 func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request *http.Request) {
-	payload, validationErrs, err := validation.UnmarshalBody[endpointCreateAPIKeyRequestPayload](request)
+	payload, validationErrs, err := schema.UnmarshalBody[endpointCreateAPIKeyRequestPayload](request)
 	if err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return
@@ -116,12 +115,12 @@ func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request
 func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *http.Request) {
 	var validationErrs []*schema.Error
 
-	offset, validationErr := validation.QueryNumber(request, "offset", false, 0, 0, math.MaxInt64)
+	offset, validationErr := schema.QueryNumber(request, "offset", false, 0, 0, math.MaxInt64)
 	if validationErr != nil {
 		validationErrs = append(validationErrs, validationErr)
 	}
 
-	limit, validationErr := validation.QueryNumber(request, "limit", false, 10, 1, 1000)
+	limit, validationErr := schema.QueryNumber(request, "limit", false, 10, 1, 1000)
 	if validationErr != nil {
 		validationErrs = append(validationErrs, validationErr)
 	}
@@ -233,7 +232,7 @@ func (service *Service) EndpointEditAPIKey(writer http.ResponseWriter, request *
 		return
 	}
 
-	payload, validationErrs, err := validation.UnmarshalBody[endpointEditAPIKeyRequestPayload](request)
+	payload, validationErrs, err := schema.UnmarshalBody[endpointEditAPIKeyRequestPayload](request)
 	if err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return

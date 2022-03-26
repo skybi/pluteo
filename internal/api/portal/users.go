@@ -3,7 +3,6 @@ package portal
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/skybi/data-server/internal/api/schema"
-	"github.com/skybi/data-server/internal/api/validation"
 	"github.com/skybi/data-server/internal/bitflag"
 	"github.com/skybi/data-server/internal/user"
 	"math"
@@ -14,12 +13,12 @@ import (
 func (service *Service) EndpointGetUsers(writer http.ResponseWriter, request *http.Request) {
 	var validationErrs []*schema.Error
 
-	offset, validationErr := validation.QueryNumber(request, "offset", false, 0, 0, math.MaxInt64)
+	offset, validationErr := schema.QueryNumber(request, "offset", false, 0, 0, math.MaxInt64)
 	if validationErr != nil {
 		validationErrs = append(validationErrs, validationErr)
 	}
 
-	limit, validationErr := validation.QueryNumber(request, "limit", false, 10, 1, 1000)
+	limit, validationErr := schema.QueryNumber(request, "limit", false, 10, 1, 1000)
 	if validationErr != nil {
 		validationErrs = append(validationErrs, validationErr)
 	}
@@ -81,7 +80,7 @@ func (service *Service) EndpointEditUser(writer http.ResponseWriter, request *ht
 	}
 
 	// Unmarshal and validate the request body
-	payload, validationErrs, err := validation.UnmarshalBody[endpointEditUserRequestPayload](request)
+	payload, validationErrs, err := schema.UnmarshalBody[endpointEditUserRequestPayload](request)
 	if err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return

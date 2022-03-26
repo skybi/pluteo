@@ -1,10 +1,9 @@
-package validation
+package schema
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/skybi/data-server/internal/api/schema"
 	"io"
 	"math"
 	"net/http"
@@ -14,8 +13,8 @@ import (
 )
 
 var (
-	errRequestBodyInvalidJSON = func(err string) *schema.Error {
-		return &schema.Error{
+	errRequestBodyInvalidJSON = func(err string) *Error {
+		return &Error{
 			Type:    "validation.requestBody.invalidJSON",
 			Message: "Request body is not a valid JSON input.",
 			Details: map[string]any{
@@ -23,8 +22,8 @@ var (
 			},
 		}
 	}
-	errRequestBodyParameterInvalidType = func(name, expectedType string) *schema.Error {
-		return &schema.Error{
+	errRequestBodyParameterInvalidType = func(name, expectedType string) *Error {
+		return &Error{
 			Type:    "validation.requestBody.parameter.invalidType",
 			Message: fmt.Sprintf("The request body parameter '%s' could not be assigned to the required type (%s).", name, expectedType),
 			Details: map[string]any{
@@ -33,8 +32,8 @@ var (
 			},
 		}
 	}
-	errRequestBodyParameterMissing = func(name string) *schema.Error {
-		return &schema.Error{
+	errRequestBodyParameterMissing = func(name string) *Error {
+		return &Error{
 			Type:    "validation.requestBody.parameter.missing",
 			Message: fmt.Sprintf("The request body parameter '%s' is required but was not present in the request.", name),
 			Details: map[string]any{
@@ -42,7 +41,7 @@ var (
 			},
 		}
 	}
-	errRequestBodyParameterNumberOutOfRange = func(name string, value, min, max int64) *schema.Error {
+	errRequestBodyParameterNumberOutOfRange = func(name string, value, min, max int64) *Error {
 		comparison := ""
 		if value < min {
 			comparison = fmt.Sprintf("%d [given] < %d [min]", value, min)
@@ -50,7 +49,7 @@ var (
 			comparison = fmt.Sprintf("%d [given] > %d [max]", value, max)
 		}
 
-		return &schema.Error{
+		return &Error{
 			Type:    "validation.requestBody.parameter.number.outOfRange",
 			Message: fmt.Sprintf("The request body parameter '%s' is out of the required range (%s).", name, comparison),
 			Details: map[string]any{
@@ -64,7 +63,7 @@ var (
 )
 
 // UnmarshalBody parses and decodes a JSON request body and performs validations on it
-func UnmarshalBody[T any](request *http.Request) (*T, []*schema.Error, error) {
+func UnmarshalBody[T any](request *http.Request) (*T, []*Error, error) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, err
@@ -73,9 +72,9 @@ func UnmarshalBody[T any](request *http.Request) (*T, []*schema.Error, error) {
 	target := new(T)
 	if err := json.Unmarshal(body, target); err != nil {
 		if typeErr, ok := err.(*json.UnmarshalTypeError); ok {
-			return nil, []*schema.Error{errRequestBodyParameterInvalidType(typeErr.Field, typeErr.Type.String())}, nil
+			return nil, []*Error{errRequestBodyParameterInvalidType(typeErr.Field, typeErr.Type.String())}, nil
 		} else {
-			return nil, []*schema.Error{errRequestBodyInvalidJSON(err.Error())}, nil
+			return nil, []*Error{errRequestBodyInvalidJSON(err.Error())}, nil
 		}
 	}
 
@@ -86,7 +85,7 @@ func UnmarshalBody[T any](request *http.Request) (*T, []*schema.Error, error) {
 	return target, errs, nil
 }
 
-func validateStruct(fieldPrefix string, val any) ([]*schema.Error, error) {
+func validateStruct(fieldPrefix string, val any) ([]*Error, error) {
 	typ := reflect.TypeOf(val)
 	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
@@ -99,7 +98,7 @@ func validateStruct(fieldPrefix string, val any) ([]*schema.Error, error) {
 		ref = ref.Elem()
 	}
 
-	var errs []*schema.Error
+	var errs []*Error
 
 	for i := 0; i < typ.NumField(); i++ {
 		// Retrieve the validation requirements
