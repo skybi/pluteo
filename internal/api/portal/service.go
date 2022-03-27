@@ -11,6 +11,7 @@ import (
 	"github.com/skybi/data-server/internal/api/portal/session/storage/inmem"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/config"
+	"github.com/skybi/data-server/internal/function"
 	"github.com/skybi/data-server/internal/storage"
 	"golang.org/x/oauth2"
 	"net/http"
@@ -89,25 +90,8 @@ func (service *Service) Startup() error {
 	}
 	service.sessionStorage = sessionStorage
 
-	// Register the OIDC authentication endpoints
-	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
-	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
-	// TODO: Implement backchannel logout
-
-	// Register the user controller endpoints
-	router.Get("/v1/users", withMiddlewares(service.EndpointGetUsers, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
-	router.Get("/v1/users/{id}", withMiddlewares(service.EndpointGetUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
-	router.Patch("/v1/users/{id}", withMiddlewares(service.EndpointEditUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
-	router.Delete("/v1/users/{id}", withMiddlewares(service.EndpointDeleteUserData, service.MiddlewareVerifySession, service.MiddlewareFetchUser, service.MiddlewareCheckAdmin))
-	router.Get("/v1/me", withMiddlewares(service.EndpointGetSelfUser, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-	router.Delete("/v1/me", withMiddlewares(service.EndpointDeleteSelfUserData, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-
-	// Register the API key controller endpoints
-	router.Post("/v1/api_keys", withMiddlewares(service.EndpointCreateAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-	router.Get("/v1/api_keys", withMiddlewares(service.EndpointGetAPIKeys, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-	router.Get("/v1/api_keys/{id}", withMiddlewares(service.EndpointGetAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-	router.Patch("/v1/api_keys/{id}", withMiddlewares(service.EndpointEditAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
-	router.Delete("/v1/api_keys/{id}", withMiddlewares(service.EndpointDeleteAPIKey, service.MiddlewareVerifySession, service.MiddlewareFetchUser))
+	// Register the API endpoint handlers
+	service.registerEndpoints(router)
 
 	// Start up the server
 	server := &http.Server{
@@ -126,10 +110,72 @@ func (service *Service) Shutdown() {
 	}
 }
 
-func withMiddlewares(end http.HandlerFunc, middlewares ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
-	final := end
-	for i := len(middlewares); i > 0; i-- {
-		final = middlewares[i-1](final)
-	}
-	return final
+func (service *Service) registerEndpoints(router chi.Router) {
+	// Register the OIDC authentication endpoints
+	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
+	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
+	// TODO: Implement backchannel logout
+
+	// Register the user controller endpoints
+	router.Get("/v1/users", function.Nest[http.HandlerFunc](
+		service.EndpointGetUsers,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+		service.MiddlewareCheckAdmin,
+	))
+	router.Get("/v1/users/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointGetUser,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+		service.MiddlewareCheckAdmin,
+	))
+	router.Patch("/v1/users/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointEditUser,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+		service.MiddlewareCheckAdmin,
+	))
+	router.Delete("/v1/users/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointDeleteUserData,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+		service.MiddlewareCheckAdmin,
+	))
+	router.Get("/v1/me", function.Nest[http.HandlerFunc](
+		service.EndpointGetSelfUser,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+	router.Delete("/v1/me", function.Nest[http.HandlerFunc](
+		service.EndpointDeleteSelfUserData,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+
+	// Register the API key controller endpoints
+	router.Post("/v1/api_keys", function.Nest[http.HandlerFunc](
+		service.EndpointCreateAPIKey,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+	router.Get("/v1/api_keys", function.Nest[http.HandlerFunc](
+		service.EndpointGetAPIKeys,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+	router.Get("/v1/api_keys/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointGetAPIKey,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+	router.Patch("/v1/api_keys/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointEditAPIKey,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
+	router.Delete("/v1/api_keys/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointDeleteAPIKey,
+		service.MiddlewareVerifySession,
+		service.MiddlewareFetchUser,
+	))
 }
