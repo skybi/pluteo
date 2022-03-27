@@ -129,7 +129,7 @@ func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*api
 		return nil, nil
 	}
 
-	row := repo.db.QueryRow(ctx, "select * from api_keys where api_key = $1", hash)
+	row := repo.db.QueryRow(ctx, "select * from api_keys where api_key = $1", hash[:])
 	obj, err := repo.rowToAPIKey(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -141,7 +141,7 @@ func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*api
 }
 
 // Create creates a new API key
-func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create) (*apikey.Key, error) {
+func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create) (*apikey.Key, string, error) {
 	id := uuid.New()
 	key, keyHash := secret.MustNew(keyLength)
 
@@ -153,7 +153,7 @@ func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create)
 		ctx,
 		query,
 		id,
-		keyHash,
+		keyHash[:],
 		create.UserID,
 		create.Description,
 		create.Quota,
@@ -162,19 +162,19 @@ func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create)
 		create.Capabilities,
 	)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	return &apikey.Key{
 		ID:           id,
-		Key:          key,
+		Key:          keyHash[:],
 		UserID:       create.UserID,
 		Description:  create.Description,
 		Quota:        create.Quota,
 		UsedQuota:    0,
 		RateLimit:    create.RateLimit,
 		Capabilities: create.Capabilities,
-	}, nil
+	}, key, nil
 }
 
 // Update updates an API key

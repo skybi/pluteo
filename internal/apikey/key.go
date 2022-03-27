@@ -8,7 +8,7 @@ import (
 // Key represents an API key used to access the data API
 type Key struct {
 	ID           uuid.UUID         `json:"id"`
-	Key          string            `json:"key,omitempty"`
+	Key          []byte            `json:"-"`
 	UserID       string            `json:"user_id"`
 	Description  string            `json:"description"`
 	Quota        int64             `json:"quota"`

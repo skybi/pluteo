@@ -21,7 +21,7 @@ type Repository interface {
 	GetByRawKey(ctx context.Context, key string) (*Key, error)
 
 	// Create creates a new API key
-	Create(ctx context.Context, create *Create) (*Key, error)
+	Create(ctx context.Context, create *Create) (*Key, string, error)
 
 	// Update updates an API key
 	Update(ctx context.Context, id uuid.UUID, update *Update) (*Key, error)

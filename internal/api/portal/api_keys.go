@@ -53,6 +53,11 @@ type endpointCreateAPIKeyRequestPayload struct {
 	Capabilities *bitflag.Container `json:"capabilities" required:"true"`
 }
 
+type endpointCreateAPIKeyResponse struct {
+	*apikey.Key
+	Raw string `json:"key"`
+}
+
 // EndpointCreateAPIKey handles the 'POST /v1/api_keys' endpoint
 func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request *http.Request) {
 	payload, validationErrs, err := schema.UnmarshalBody[endpointCreateAPIKeyRequestPayload](request)
@@ -103,12 +108,15 @@ func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request
 		create.Description = *payload.Description
 	}
 
-	key, err := service.Storage.APIKeys().Create(request.Context(), create)
+	key, raw, err := service.Storage.APIKeys().Create(request.Context(), create)
 	if err != nil {
 		service.writer.WriteInternalError(writer, err)
 		return
 	}
-	service.writer.WriteJSONCode(writer, http.StatusCreated, key)
+	service.writer.WriteJSONCode(writer, http.StatusCreated, endpointCreateAPIKeyResponse{
+		Key: key,
+		Raw: raw,
+	})
 }
 
 // EndpointGetAPIKeys handles the 'GET /v1/api_keys?offset={number?:0}&limit={number?:10}&user_id={string?}' endpoint
@@ -151,10 +159,6 @@ func (service *Service) EndpointGetAPIKeys(writer http.ResponseWriter, request *
 		return
 	}
 
-	for _, key := range keys {
-		key.Key = ""
-	}
-
 	service.writer.WriteJSON(writer, schema.BuildPaginatedResponse(uint64(offset), uint64(limit), n, keys))
 }
 
@@ -188,8 +192,6 @@ func (service *Service) EndpointGetAPIKey(writer http.ResponseWriter, request *h
 		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
 		return
 	}
-
-	obj.Key = ""
 
 	service.writer.WriteJSON(writer, obj)
 }
@@ -280,7 +282,6 @@ func (service *Service) EndpointEditAPIKey(writer http.ResponseWriter, request *
 		service.writer.WriteInternalError(writer, err)
 		return
 	}
-	newObj.Key = ""
 	service.writer.WriteJSONCode(writer, http.StatusOK, newObj)
 }
 

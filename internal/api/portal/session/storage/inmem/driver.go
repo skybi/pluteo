@@ -2,6 +2,7 @@ package inmem
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/hashicorp/go-memdb"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/secret"
@@ -9,6 +10,25 @@ import (
 )
 
 var tokenLength = 64
+
+type inmemSession struct {
+	*session.Session
+	TokenString string
+}
+
+func inmemToGeneric(ses *inmemSession) *session.Session {
+	inner := ses.Session
+	bytes, _ := hex.DecodeString(ses.TokenString)
+	inner.Token = bytes
+	return inner
+}
+
+func genericToInmem(ses *session.Session) *inmemSession {
+	return &inmemSession{
+		Session:     ses,
+		TokenString: hex.EncodeToString(ses.Token),
+	}
+}
 
 var dbSchema = &memdb.DBSchema{
 	Tables: map[string]*memdb.TableSchema{
@@ -19,7 +39,7 @@ var dbSchema = &memdb.DBSchema{
 					Name:         "id",
 					Unique:       true,
 					AllowMissing: false,
-					Indexer:      &memdb.StringFieldIndex{Field: "Token"},
+					Indexer:      &memdb.StringFieldIndex{Field: "TokenString"},
 				},
 				"sessionID": {
 					Name:         "sessionID",
@@ -68,7 +88,7 @@ func (driver *Driver) GetByRawToken(_ context.Context, rawToken string) (*sessio
 	}
 
 	txn := driver.db.Txn(false)
-	obj, err := txn.First("sessions", "id", hash)
+	obj, err := txn.First("sessions", "id", hex.EncodeToString(hash[:]))
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +96,7 @@ func (driver *Driver) GetByRawToken(_ context.Context, rawToken string) (*sessio
 		return nil, nil
 	}
 
-	return obj.(*session.Session), nil
+	return inmemToGeneric(obj.(*inmemSession)), nil
 }
 
 // Create creates a new session
@@ -84,7 +104,7 @@ func (driver *Driver) Create(_ context.Context, userID, sessionID string, expire
 	token, hashedToken := secret.MustNew(tokenLength)
 
 	ses := &session.Session{
-		Token:     hashedToken,
+		Token:     hashedToken[:],
 		SessionID: sessionID,
 		UserID:    userID,
 		Expires:   expires,
@@ -92,7 +112,7 @@ func (driver *Driver) Create(_ context.Context, userID, sessionID string, expire
 
 	txn := driver.db.Txn(true)
 	defer txn.Abort()
-	if err := txn.Insert("sessions", ses); err != nil {
+	if err := txn.Insert("sessions", genericToInmem(ses)); err != nil {
 		return "", err
 	}
 	txn.Commit()

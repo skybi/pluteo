@@ -23,7 +23,7 @@ create table user_api_key_policies (
 
 create table api_keys (
     key_id uuid not null,
-    api_key text not null,
+    api_key bytea not null,
     user_id text not null,
     description text not null,
     quota bigint not null default -1,

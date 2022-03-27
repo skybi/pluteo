@@ -2,12 +2,12 @@ package secret
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 )
 
-// MustNew generates a new base64-encoded secret + its base64-encoded SHA256 hash
-func MustNew(len int) (string, string) {
+// MustNew generates a new cryptographically secure byte array of length len and returns its base64 representation + its SHA512 hash
+func MustNew(len int) (string, [64]byte) {
 	bytes := make([]byte, len)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -15,16 +15,16 @@ func MustNew(len int) (string, string) {
 	}
 
 	raw := base64.StdEncoding.EncodeToString(bytes)
-	sum := sha256.Sum256(bytes)
-	return raw, base64.StdEncoding.EncodeToString(sum[:])
+	sum := sha512.Sum512(bytes)
+	return raw, sum
 }
 
-// Hash decodes the given base64 string and returns its base64-encoded SHA256 hash
-func Hash(raw string) (string, error) {
+// Hash decodes the given base64 string and returns its SHA512 hash
+func Hash(raw string) ([64]byte, error) {
 	bytes, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {
-		return "", err
+		return [64]byte{}, err
 	}
-	sum := sha256.Sum256(bytes)
-	return base64.StdEncoding.EncodeToString(sum[:]), nil
+	sum := sha512.Sum512(bytes)
+	return sum, nil
 }
