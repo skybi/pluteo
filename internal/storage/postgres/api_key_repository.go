@@ -2,15 +2,13 @@ package postgres
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/random"
+	"github.com/skybi/data-server/internal/secret"
 )
 
 var keyLength = 64
@@ -125,7 +123,13 @@ func (repo *APIKeyRepository) GetByID(ctx context.Context, id uuid.UUID) (*apike
 
 // GetByRawKey retrieves an API key by the raw bearer token
 func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*apikey.Key, error) {
-	row := repo.db.QueryRow(ctx, "select * from api_keys where api_key = $1", repo.hashRawKey(key))
+	hash, err := secret.Hash(key)
+	if err != nil {
+		// The raw key is no valid base64 string. This has the same effect as an invalid key.
+		return nil, nil
+	}
+
+	row := repo.db.QueryRow(ctx, "select * from api_keys where api_key = $1", hash)
 	obj, err := repo.rowToAPIKey(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -139,7 +143,7 @@ func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*api
 // Create creates a new API key
 func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create) (*apikey.Key, error) {
 	id := uuid.New()
-	key := repo.generateKey()
+	key, keyHash := secret.MustNew(keyLength)
 
 	query := `
 		insert into api_keys (key_id, api_key, user_id, description, quota, used_quota, rate_limit, capabilities)
@@ -149,7 +153,7 @@ func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create)
 		ctx,
 		query,
 		id,
-		repo.hashRawKey(key),
+		keyHash,
 		create.UserID,
 		create.Description,
 		create.Quota,
@@ -224,13 +228,4 @@ func (repo *APIKeyRepository) rowToAPIKey(row pgx.Row) (*apikey.Key, error) {
 		return nil, err
 	}
 	return obj, nil
-}
-
-func (repo *APIKeyRepository) generateKey() string {
-	return random.String(keyLength, random.CharsetTokens)
-}
-
-func (repo *APIKeyRepository) hashRawKey(raw string) string {
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
 }

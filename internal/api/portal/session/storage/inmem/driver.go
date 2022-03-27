@@ -2,11 +2,9 @@ package inmem
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"github.com/hashicorp/go-memdb"
 	"github.com/skybi/data-server/internal/api/portal/session"
-	"github.com/skybi/data-server/internal/random"
+	"github.com/skybi/data-server/internal/secret"
 	"time"
 )
 
@@ -64,7 +62,10 @@ func New() (*Driver, error) {
 
 // GetByRawToken retrieves a session by its raw (prior hashing) token
 func (driver *Driver) GetByRawToken(_ context.Context, rawToken string) (*session.Session, error) {
-	hash := hashToken(rawToken)
+	hash, err := secret.Hash(rawToken)
+	if err != nil {
+		return nil, err
+	}
 
 	txn := driver.db.Txn(false)
 	obj, err := txn.First("sessions", "id", hash)
@@ -80,11 +81,10 @@ func (driver *Driver) GetByRawToken(_ context.Context, rawToken string) (*sessio
 
 // Create creates a new session
 func (driver *Driver) Create(_ context.Context, userID, sessionID string, expires int64) (string, error) {
-	rawToken := random.String(tokenLength, random.CharsetTokens)
-	token := hashToken(rawToken)
+	token, hashedToken := secret.MustNew(tokenLength)
 
 	ses := &session.Session{
-		Token:     token,
+		Token:     hashedToken,
 		SessionID: sessionID,
 		UserID:    userID,
 		Expires:   expires,
@@ -97,7 +97,7 @@ func (driver *Driver) Create(_ context.Context, userID, sessionID string, expire
 	}
 	txn.Commit()
 
-	return rawToken, nil
+	return token, nil
 }
 
 // TerminateBySessionID terminates a session by its session ID
@@ -147,9 +147,4 @@ func (driver *Driver) TerminateExpired(_ context.Context) (int, error) {
 
 	txn.Commit()
 	return deleted, nil
-}
-
-func hashToken(raw string) string {
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
 }
