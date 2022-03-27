@@ -19,6 +19,8 @@ type Config struct {
 	OIDCProviderURL  string `split_words:"true"`
 	OIDCClientID     string `split_words:"true"`
 	OIDCClientSecret string `split_words:"true"`
+
+	DataAPIListenAddress string `default:":8082" split_words:"true"`
 }
 
 // LoadFromEnv loads a new configuration structure using environment variables and an optional .env file

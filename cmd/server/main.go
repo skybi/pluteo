@@ -40,7 +40,7 @@ func main() {
 	}
 
 	// Start up the portal & data APIs
-	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Msg("starting up portal & data APIs...")
+	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Str("data_api", cfg.DataAPIListenAddress).Msg("starting up portal & data APIs...")
 	apis := &api.Service{
 		Config:  cfg,
 		Storage: driver,

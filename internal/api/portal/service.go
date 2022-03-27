@@ -20,8 +20,7 @@ import (
 type Service struct {
 	server *http.Server
 
-	Config *config.Config
-
+	Config  *config.Config
 	Storage storage.Driver
 
 	oidcOAuth2Config    *oauth2.Config
