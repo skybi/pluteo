@@ -19,12 +19,12 @@ var (
 		Details: emptyMap,
 	}
 	ErrUnauthorized = &Error{
-		Type:    "access.unauthorized",
+		Type:    "generic.access.unauthorized",
 		Message: "Unauthorized",
 		Details: emptyMap,
 	}
 	ErrForbidden = &Error{
-		Type:    "access.forbidden",
+		Type:    "generic.access.forbidden",
 		Message: "You are not authorized to access this resource.",
 		Details: emptyMap,
 	}
