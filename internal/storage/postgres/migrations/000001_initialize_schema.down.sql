@@ -1,7 +1,7 @@
-begin;
+BEGIN;
 
-drop table if exists api_keys;
-drop table if exists user_api_key_policies;
-drop table if exists users;
+DROP TABLE IF EXISTS api_keys;
+DROP TABLE IF EXISTS user_api_key_policies;
+DROP TABLE IF EXISTS users;
 
-commit;
+COMMIT;

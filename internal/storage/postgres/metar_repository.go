@@ -79,7 +79,7 @@ func (repo *METARRepository) GetByFilter(ctx context.Context, filter *metar.Filt
 
 // GetByID retrieves a METAR by its ID
 func (repo *METARRepository) GetByID(ctx context.Context, id uuid.UUID) (*metar.METAR, error) {
-	row := repo.db.QueryRow(ctx, "select * from metars where metar_id = $1", id)
+	row := repo.db.QueryRow(ctx, "SELECT * FROM metars WHERE metar_id = $1", id)
 	obj, err := repo.rowToMETAR(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -112,7 +112,7 @@ func (repo *METARRepository) Create(ctx context.Context, raw []string) ([]*metar
 		}
 
 		// Insert the METAR into the database
-		tag, err := txn.Exec(ctx, "insert into metars values ($1, $2, $3, $4) on conflict do nothing", obj.ID, obj.StationID, obj.IssuedAt, obj.Raw)
+		tag, err := txn.Exec(ctx, "INSERT INTO metars VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING", obj.ID, obj.StationID, obj.IssuedAt, obj.Raw)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -133,7 +133,7 @@ func (repo *METARRepository) Create(ctx context.Context, raw []string) ([]*metar
 
 // Delete deletes a METAR by its ID
 func (repo *METARRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := repo.db.Exec(ctx, "delete from metars where metar_id = $1", id)
+	_, err := repo.db.Exec(ctx, "DELETE FROM metars WHERE metar_id = $1", id)
 	return err
 }
 

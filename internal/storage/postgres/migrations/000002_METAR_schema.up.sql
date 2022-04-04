@@ -1,19 +1,19 @@
-begin;
+BEGIN;
 
-drop index if exists metars_issued_at_index;
-drop index if exists metars_station_id_index;
-drop table if exists metars;
+DROP INDEX IF EXISTS metars_issued_at_index;
+DROP INDEX IF EXISTS metars_station_id_index;
+DROP TABLE IF EXISTS metars;
 
-create table metars (
-    metar_id uuid not null,
-    station_id text not null,
-    issued_at bigint not null,
-    raw text not null,
-    primary key (metar_id),
-    unique (station_id, issued_at, raw)
+CREATE TABLE metars (
+    metar_id uuid NOT NULL,
+    station_id text NOT NULL,
+    issued_at bigint NOT NULL,
+    raw text NOT NULL,
+    PRIMARY KEY (metar_id),
+    UNIQUE (station_id, issued_at, raw)
 );
 
-create index metars_station_id_index on metars using hash (station_id);
-create index metars_issued_at_index on metars (issued_at);
+CREATE INDEX metars_station_id_index ON metars USING HASH (station_id);
+CREATE INDEX metars_issued_at_index ON metars (issued_at);
 
-commit;
+COMMIT;

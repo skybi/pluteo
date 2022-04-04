@@ -1,7 +1,7 @@
-begin;
+BEGIN;
 
-drop index if exists metars_issued_at_index;
-drop index if exists metars_station_id_index;
-drop table if exists metars;
+DROP INDEX IF EXISTS metars_issued_at_index;
+DROP INDEX IF EXISTS metars_station_id_index;
+DROP TABLE IF EXISTS metars;
 
-commit;
+COMMIT;

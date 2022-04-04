@@ -37,7 +37,7 @@ func (repo *APIKeyRepository) Get(ctx context.Context, offset, limit uint64) ([]
 	}
 
 	var n uint64
-	if err := repo.db.QueryRow(ctx, "select count(*) from api_keys").Scan(&n); err != nil {
+	if err := repo.db.QueryRow(ctx, "SELECT COUNT(*) FROM api_keys").Scan(&n); err != nil {
 		return nil, 0, err
 	}
 	if n == 0 {
@@ -81,7 +81,7 @@ func (repo *APIKeyRepository) GetByUserID(ctx context.Context, userID string, of
 	}
 
 	var n uint64
-	if err := repo.db.QueryRow(ctx, "select count(*) from api_keys where user_id = $1", userID).Scan(&n); err != nil {
+	if err := repo.db.QueryRow(ctx, "SELECT COUNT(*) FROM api_keys WHERE user_id = $1", userID).Scan(&n); err != nil {
 		return nil, 0, err
 	}
 	if n == 0 {
@@ -110,7 +110,7 @@ func (repo *APIKeyRepository) GetByUserID(ctx context.Context, userID string, of
 
 // GetByID retrieves an API key by its ID
 func (repo *APIKeyRepository) GetByID(ctx context.Context, id uuid.UUID) (*apikey.Key, error) {
-	row := repo.db.QueryRow(ctx, "select * from api_keys where key_id = $1", id)
+	row := repo.db.QueryRow(ctx, "SELECT * FROM api_keys WHERE key_id = $1", id)
 	key, err := repo.rowToAPIKey(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -129,7 +129,7 @@ func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*api
 		return nil, nil
 	}
 
-	row := repo.db.QueryRow(ctx, "select * from api_keys where api_key = $1", hash[:])
+	row := repo.db.QueryRow(ctx, "SELECT * FROM api_keys WHERE api_key = $1", hash[:])
 	obj, err := repo.rowToAPIKey(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -145,13 +145,9 @@ func (repo *APIKeyRepository) Create(ctx context.Context, create *apikey.Create)
 	id := uuid.New()
 	key, keyHash := secret.MustNew(keyLength)
 
-	query := `
-		insert into api_keys (key_id, api_key, user_id, description, quota, used_quota, rate_limit, capabilities)
-		values ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
 	_, err := repo.db.Exec(
 		ctx,
-		query,
+		"INSERT INTO api_keys VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		id,
 		keyHash[:],
 		create.UserID,
@@ -218,7 +214,7 @@ func (repo *APIKeyRepository) Update(ctx context.Context, id uuid.UUID, update *
 
 // Delete deletes an API key by its ID
 func (repo *APIKeyRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := repo.db.Exec(ctx, "delete from api_keys where key_id = $1", id)
+	_, err := repo.db.Exec(ctx, "DELETE FROM api_keys WHERE key_id = $1", id)
 	return err
 }
 

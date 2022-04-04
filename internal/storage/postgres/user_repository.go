@@ -45,7 +45,7 @@ func (repo *UserRepository) Get(ctx context.Context, offset, limit uint64) ([]*u
 	}
 
 	var n uint64
-	if err := repo.db.QueryRow(ctx, "select count(*) from users").Scan(&n); err != nil {
+	if err := repo.db.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil {
 		return nil, 0, err
 	}
 	if n == 0 {
@@ -86,7 +86,7 @@ func (repo *UserRepository) Get(ctx context.Context, offset, limit uint64) ([]*u
 // GetByID retrieves a user by their ID
 func (repo *UserRepository) GetByID(ctx context.Context, id string) (*user.User, error) {
 	// Retrieve the user row itself
-	userRow := repo.db.QueryRow(ctx, "select * from users where user_id = $1", id)
+	userRow := repo.db.QueryRow(ctx, "SELECT * FROM users WHERE user_id = $1", id)
 	userObj, err := repo.rowToUser(userRow)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -96,7 +96,7 @@ func (repo *UserRepository) GetByID(ctx context.Context, id string) (*user.User,
 	}
 
 	// Retrieve the corresponding API key policy and add it to the user object
-	apiKeyPolicyRow := repo.db.QueryRow(ctx, "select * from user_api_key_policies where user_id = $1", id)
+	apiKeyPolicyRow := repo.db.QueryRow(ctx, "SELECT * FROM user_api_key_policies WHERE user_id = $1", id)
 	apiKeyPolicyObj, err := repo.rowToAPIKeyPolicy(apiKeyPolicyRow)
 	if err != nil {
 		return nil, err
@@ -121,23 +121,15 @@ func (repo *UserRepository) Create(ctx context.Context, create *user.Create) (*u
 	defer tx.Rollback(ctx)
 
 	// Create the user row itself
-	createUserQuery := `
-		insert into users (user_id, display_name, restricted, admin)
-		values ($1, $2, $3, $4)
-	`
-	_, err = tx.Exec(ctx, createUserQuery, create.ID, create.DisplayName, false, create.Admin)
+	_, err = tx.Exec(ctx, "INSERT INTO users VALUES ($1, $2, $3, $4)", create.ID, create.DisplayName, false, create.Admin)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the corresponding API key policy row
-	createAPIKeyPolicyQuery := `
-		insert into user_api_key_policies (user_id, max_quota, max_rate_limit, allowed_capabilities)
-		values ($1, $2, $3, $4)
-	`
 	_, err = tx.Exec(
 		ctx,
-		createAPIKeyPolicyQuery,
+		"INSERT INTO user_api_key_policies VALUES ($1, $2, $3, $4)",
 		create.ID,
 		create.APIKeyPolicy.MaxQuota,
 		create.APIKeyPolicy.MaxRateLimit,
@@ -228,7 +220,7 @@ func (repo *UserRepository) Update(ctx context.Context, id string, update *user.
 
 // Delete deletes a user by their ID
 func (repo *UserRepository) Delete(ctx context.Context, id string) error {
-	_, err := repo.db.Exec(ctx, "delete from users where user_id = $1", id)
+	_, err := repo.db.Exec(ctx, "DELETE FROM users WHERE user_id = $1", id)
 	return err
 }
 
