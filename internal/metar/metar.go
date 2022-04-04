@@ -27,7 +27,6 @@ type METAR struct {
 // until the timestamp was decoded successfully.
 func OfString(raw string) (*METAR, error) {
 	raw = strings.TrimSpace(raw)
-	initial := raw
 
 	// The report type (METAR or SPECI) is not included in the METAR object as no currently known data source provides them.
 	// We still trim them as they are technically correct in a raw METAR and thus MAY be provided by a feeder.
@@ -36,6 +35,9 @@ func OfString(raw string) (*METAR, error) {
 	} else if strings.HasPrefix(raw, "SPECI") {
 		raw = strings.TrimSpace(strings.TrimPrefix(raw, "SPECI"))
 	}
+
+	// To prevent data inconsistency, we will not include the report type either way
+	initial := raw
 
 	// The next 4 characters represent the station's ICAO code
 	if len(raw) < 4 {

@@ -13,7 +13,7 @@ var (
 	ErrMissingAPIKeyPolicy = errors.New("an initial API key policy is required")
 )
 
-// UserRepository implements the user.Repository for PostgreSQL
+// UserRepository implements the user.Repository interface using PostgreSQL
 type UserRepository struct {
 	db *pgxpool.Pool
 }

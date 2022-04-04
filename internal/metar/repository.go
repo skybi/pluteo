@@ -7,11 +7,9 @@ import (
 
 // Repository defines the METAR repository API
 type Repository interface {
-	// Get retrieves multiple METARs, ordered by their issuing date (descending)
-	Get(ctx context.Context, offset, limit uint64) ([]*METAR, uint64, error)
-
-	// GetByFilter retrieves multiple METARs following a filter, ordered by their issuing date (descending)
-	GetByFilter(ctx context.Context, filter *Filter, offset, limit uint64) ([]*METAR, uint64, error)
+	// GetByFilter retrieves multiple METARs following a filter, ordered by their issuing date (descending).
+	// If limit <= 0, a default limit value of 10 is used.
+	GetByFilter(ctx context.Context, filter *Filter, limit uint64) ([]*METAR, uint64, error)
 
 	// GetByID retrieves a METAR by its ID
 	GetByID(ctx context.Context, id uuid.UUID) (*METAR, error)
@@ -27,7 +25,7 @@ type Repository interface {
 
 // Filter is used to query METARs based on a filter
 type Filter struct {
-	StationID    *string `json:"station_id"`
-	IssuedBefore *int64  `json:"issued_before"`
-	IssuedAfter  *int64  `json:"issued_after"`
+	StationID    *string
+	IssuedBefore *int64
+	IssuedAfter  *int64
 }

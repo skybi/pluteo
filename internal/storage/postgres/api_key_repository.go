@@ -13,7 +13,7 @@ import (
 
 var keyLength = 64
 
-// APIKeyRepository implements the apikey.Repository for PostgreSQL
+// APIKeyRepository implements the apikey.Repository interface using PostgreSQL
 type APIKeyRepository struct {
 	db *pgxpool.Pool
 }

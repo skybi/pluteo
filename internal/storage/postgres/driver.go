@@ -9,6 +9,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/skybi/data-server/internal/apikey"
+	"github.com/skybi/data-server/internal/metar"
 	"github.com/skybi/data-server/internal/storage"
 	"github.com/skybi/data-server/internal/user"
 )
@@ -22,6 +23,7 @@ type Driver struct {
 	db      *pgxpool.Pool
 	users   *UserRepository
 	apiKeys *APIKeyRepository
+	metars  *METARRepository
 }
 
 var _ storage.Driver = (*Driver)(nil)
@@ -60,6 +62,7 @@ func (driver *Driver) Initialize(ctx context.Context) error {
 	// Initialize the repository implementations
 	driver.users = &UserRepository{db: pool}
 	driver.apiKeys = &APIKeyRepository{db: pool}
+	driver.metars = &METARRepository{db: pool}
 
 	return nil
 }
@@ -74,10 +77,16 @@ func (driver *Driver) APIKeys() apikey.Repository {
 	return driver.apiKeys
 }
 
+// METARs provides the PostgreSQL METAR repository implementation
+func (driver *Driver) METARs() metar.Repository {
+	return driver.metars
+}
+
 // Close discards the repository implementations and closes the database connection
 func (driver *Driver) Close() {
 	driver.users = nil
 	driver.apiKeys = nil
+	driver.metars = nil
 
 	driver.db.Close()
 	driver.db = nil
