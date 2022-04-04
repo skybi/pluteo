@@ -10,17 +10,17 @@ type Writer struct {
 	InternalErrorHook func(err error)
 }
 
-// WriteJSONCode writes the JSON representation of value to the given response writer using the given HTTP status code
-func (writer *Writer) WriteJSONCode(rw http.ResponseWriter, code int, value any) {
+// WriteJSONWithCode writes the JSON representation of value to the given response writer using the given HTTP status code
+func (writer *Writer) WriteJSONWithCode(rw http.ResponseWriter, code int, value any) {
 	val, _ := json.Marshal(value)
 	rw.WriteHeader(code)
 	rw.Write(val)
 }
 
 // WriteJSON writes the JSON representation of value to the given response writer.
-// This method sends 200 OK as the HTTP status code; use WriteJSONCode to use a different one.
+// This method sends 200 OK as the HTTP status code; use WriteJSONWithCode to use a different one.
 func (writer *Writer) WriteJSON(rw http.ResponseWriter, value any) {
-	writer.WriteJSONCode(rw, http.StatusOK, value)
+	writer.WriteJSONWithCode(rw, http.StatusOK, value)
 }
 
 // WriteErrors sends an error response
@@ -37,7 +37,7 @@ func (writer *Writer) WriteErrors(rw http.ResponseWriter, code int, errors ...*E
 			err.Details = map[string]any{}
 		}
 	}
-	writer.WriteJSONCode(rw, code, response)
+	writer.WriteJSONWithCode(rw, code, response)
 }
 
 // WriteInternalError processes an internal server error and writes it to the response

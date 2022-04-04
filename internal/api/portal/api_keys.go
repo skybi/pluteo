@@ -113,7 +113,7 @@ func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request
 		service.writer.WriteInternalError(writer, err)
 		return
 	}
-	service.writer.WriteJSONCode(writer, http.StatusCreated, endpointCreateAPIKeyResponse{
+	service.writer.WriteJSONWithCode(writer, http.StatusCreated, endpointCreateAPIKeyResponse{
 		Key: key,
 		Raw: raw,
 	})
@@ -282,7 +282,7 @@ func (service *Service) EndpointEditAPIKey(writer http.ResponseWriter, request *
 		service.writer.WriteInternalError(writer, err)
 		return
 	}
-	service.writer.WriteJSONCode(writer, http.StatusOK, newObj)
+	service.writer.WriteJSONWithCode(writer, http.StatusOK, newObj)
 }
 
 // EndpointDeleteAPIKey handles the 'DELETE /v1/api_keys/{id}' endpoint
