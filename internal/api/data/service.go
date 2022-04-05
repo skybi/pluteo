@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/schema"
+	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
 	"github.com/skybi/data-server/internal/storage"
 	"net/http"
@@ -15,8 +16,9 @@ import (
 type Service struct {
 	server *http.Server
 
-	Config  *config.Config
-	Storage storage.Driver
+	Config       *config.Config
+	Storage      storage.Driver
+	QuotaTracker *quota.Tracker
 
 	writer *schema.Writer
 }

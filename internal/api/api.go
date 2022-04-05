@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/skybi/data-server/internal/api/data"
 	"github.com/skybi/data-server/internal/api/portal"
+	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
 	"github.com/skybi/data-server/internal/storage"
 	"net/http"
@@ -11,8 +12,9 @@ import (
 
 // Service represents the portal & data API service
 type Service struct {
-	Config  *config.Config
-	Storage storage.Driver
+	Config       *config.Config
+	Storage      storage.Driver
+	QuotaTracker *quota.Tracker
 
 	portal *portal.Service
 	data   *data.Service
@@ -32,8 +34,9 @@ func (service *Service) Startup(errs chan<- error) {
 	}()
 
 	dataService := &data.Service{
-		Config:  service.Config,
-		Storage: service.Storage,
+		Config:       service.Config,
+		Storage:      service.Storage,
+		QuotaTracker: service.QuotaTracker,
 	}
 	service.data = dataService
 	go func() {

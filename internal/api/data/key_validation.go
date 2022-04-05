@@ -12,17 +12,24 @@ import (
 
 var contextValueKey = "key"
 
-var errAuthInsufficientCapabilities = func(provided, required bitflag.Container) *schema.Error {
-	return &schema.Error{
-		Type:    "data.access.insufficientKeyCapabilities",
-		Message: "The specified API key lacks at least one capability required for this action.",
-		Details: map[string]any{
-			"provided": provided,
-			"required": required,
-			"missing":  required & ^provided,
-		},
+var (
+	errKeyInsufficientCapabilities = func(provided, required bitflag.Container) *schema.Error {
+		return &schema.Error{
+			Type:    "data.access.insufficientKeyCapabilities",
+			Message: "The specified API key lacks at least one capability required for this action.",
+			Details: map[string]any{
+				"provided": provided,
+				"required": required,
+				"missing":  required & ^provided,
+			},
+		}
 	}
-}
+	errKeyNoQuotaLeft = &schema.Error{
+		Type:    "data.access.noKeyQuotaLeft",
+		Message: "The specified API key has no API quota left.",
+		Details: nil,
+	}
+)
 
 // MiddlewareVerifyKey makes sure that the requesting client has provided a valid API key.
 // Additionally, it injects the API key object itself into the request context.
@@ -64,14 +71,36 @@ func (service *Service) MiddlewareVerifyKeyCapabilities(caps ...bitflag.Flag) fu
 				return
 			}
 
-			// Verify the keys capabilities
+			// Verify the key's capabilities
 			if !key.Capabilities.Has(caps...) {
-				err := errAuthInsufficientCapabilities(key.Capabilities, bitflag.EmptyContainer.With(caps...))
+				err := errKeyInsufficientCapabilities(key.Capabilities, bitflag.EmptyContainer.With(caps...))
 				service.writer.WriteErrors(writer, http.StatusForbidden, err)
 				return
 			}
+
 			// Delegate to the next handler
 			next(writer, request)
 		}
+	}
+}
+
+// MiddlewareVerifyKeyQuota makes sure that the provided API key has quota left to perform a request
+func (service *Service) MiddlewareVerifyKeyQuota(next http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		// Extract the API key object
+		key, ok := request.Context().Value(contextValueKey).(*apikey.Key)
+		if !ok {
+			service.writer.WriteInternalError(writer, errors.New("API key quota check without API key verification"))
+			return
+		}
+
+		// Verify the key's quota
+		if key.Quota >= 0 && service.QuotaTracker.Get(key) >= key.Quota {
+			service.writer.WriteErrors(writer, http.StatusForbidden, errKeyNoQuotaLeft)
+			return
+		}
+
+		// Delegate to the next handler
+		next(writer, request)
 	}
 }

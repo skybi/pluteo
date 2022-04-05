@@ -26,6 +26,9 @@ type Repository interface {
 	// Update updates an API key
 	Update(ctx context.Context, id uuid.UUID, update *Update) (*Key, error)
 
+	// UpdateManyQuotas updates many used API quotas at once
+	UpdateManyQuotas(ctx context.Context, updates map[uuid.UUID]int64) error
+
 	// Delete deletes an API key by its ID
 	Delete(ctx context.Context, id uuid.UUID) error
 }

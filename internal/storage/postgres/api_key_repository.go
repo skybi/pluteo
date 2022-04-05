@@ -212,6 +212,24 @@ func (repo *APIKeyRepository) Update(ctx context.Context, id uuid.UUID, update *
 	return repo.GetByID(ctx, id)
 }
 
+// UpdateManyQuotas updates many used API quotas at once
+func (repo *APIKeyRepository) UpdateManyQuotas(ctx context.Context, updates map[uuid.UUID]int64) error {
+	txn, err := repo.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer txn.Rollback(ctx)
+
+	for k, v := range updates {
+		_, err := txn.Exec(ctx, "UPDATE api_keys SET used_quota = $1 WHERE key_id = $2", v, k)
+		if err != nil {
+			return err
+		}
+	}
+
+	return txn.Commit(ctx)
+}
+
 // Delete deletes an API key by its ID
 func (repo *APIKeyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := repo.db.Exec(ctx, "DELETE FROM api_keys WHERE key_id = $1", id)

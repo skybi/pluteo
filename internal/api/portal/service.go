@@ -114,6 +114,7 @@ func (service *Service) registerEndpoints(router chi.Router) {
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
+
 	// TODO: Implement backchannel logout
 
 	// Register the user controller endpoints

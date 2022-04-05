@@ -6,10 +6,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api"
+	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
 	"github.com/skybi/data-server/internal/storage/postgres"
+	"github.com/skybi/data-server/internal/task"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func main() {
@@ -39,11 +42,25 @@ func main() {
 		log.Fatal().Err(err).Msg("could not initialize the database connection")
 	}
 
+	// Create the API key quota tracker and schedule a task that flushes it
+	quotaTracker := quota.NewTracker(driver.APIKeys())
+	flushingTask := task.NewRepeating(func() {
+		n, err := quotaTracker.Flush()
+		if err != nil {
+			log.Error().Err(err).Msg("could not flush changed API key quotas")
+		} else if n > 0 {
+			log.Info().Int("amount", n).Msg("flushed changed API key quotas")
+		}
+	}, time.Minute)
+	flushingTask.Start()
+	defer flushingTask.Stop()
+
 	// Start up the portal & data APIs
 	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Str("data_api", cfg.DataAPIListenAddress).Msg("starting up portal & data APIs...")
 	apis := &api.Service{
-		Config:  cfg,
-		Storage: driver,
+		Config:       cfg,
+		Storage:      driver,
+		QuotaTracker: quotaTracker,
 	}
 	apiErrs := make(chan error, 1)
 	apis.Startup(apiErrs)
