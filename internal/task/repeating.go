@@ -16,7 +16,6 @@ func NewRepeating(task func(), interval time.Duration) *RepeatingTask {
 	return &RepeatingTask{
 		task:     task,
 		interval: interval,
-		stop:     make(chan struct{}),
 	}
 }
 
@@ -37,14 +36,19 @@ func (task *RepeatingTask) Start() {
 		}
 	}()
 	task.running = true
+	task.stop = make(chan struct{})
 }
 
 // Stop stops the repeating task.
 // If the task is not running, this is a no-op.
-func (task *RepeatingTask) Stop() {
+// forceExec defines whether to execute the task one last time just before the task shuts down.
+func (task *RepeatingTask) Stop(forceExec bool) {
 	if !task.running {
 		return
 	}
 	close(task.stop)
 	task.running = false
+	if forceExec {
+		task.task()
+	}
 }
