@@ -73,8 +73,6 @@ func main() {
 		apis.Shutdown()
 	}()
 
-	// TODO: startup logic
-
 	log.Info().Msg("done!")
 	defer log.Info().Msg("shutting down...")
 

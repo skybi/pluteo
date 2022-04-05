@@ -58,7 +58,7 @@ func (safeMap *Map[K, V]) Remove(key K) {
 
 // GetUnderlyingMap returns the underlying map.
 // This method effectively bypasses the thread safety this structure implements.
-// Manual calls to Lock and Unlock while manipulating this map are required to keep thread safety.
+// Manual calls to Lock and Unlock before and after manipulating this map are required to keep thread safety.
 func (safeMap *Map[K, V]) GetUnderlyingMap() map[K]V {
 	return safeMap.values
 }
