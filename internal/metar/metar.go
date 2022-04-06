@@ -20,6 +20,13 @@ type METAR struct {
 // This method is no replacement to a fully-featured METAR decoder & validator as it only reads and validates the METAR
 // until the timestamp was decoded successfully.
 func OfString(raw string) (*METAR, error) {
+	// METARs only consist of ASCII characters. We don't want to fuck around with other stuff.
+	for i := 0; i < len(raw); i++ {
+		if raw[i] > unicode.MaxASCII {
+			return nil, ErrNoASCIIString
+		}
+	}
+
 	raw = strings.TrimSpace(raw)
 
 	// The report type (METAR or SPECI) is not included in the METAR object as no currently known data source provides them.
