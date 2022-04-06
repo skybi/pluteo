@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
@@ -107,7 +108,10 @@ func (repo *METARRepository) Create(ctx context.Context, raw []string) ([]*metar
 		// Parse the raw string into a metar.METAR object
 		obj, err := metar.OfString(str)
 		if err != nil {
-			// TODO: Wrap error to include ID
+			var formatErr *metar.FormatError
+			if errors.As(err, &formatErr) {
+				return nil, nil, &metar.FormatError{Wrapping: fmt.Errorf("error in METAR no. %d: %s", i, err.Error())}
+			}
 			return nil, nil, err
 		}
 

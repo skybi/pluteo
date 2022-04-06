@@ -1,17 +1,11 @@
 package metar
 
 import (
-	"errors"
 	"github.com/google/uuid"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
-)
-
-var (
-	ErrMETARIncomplete  = errors.New("the METAR is incomplete (end of string reached before time was found)")
-	ErrInvalidMETARTime = errors.New("the METAR's issuing time is formatted incorrectly (expected 'ddddddZ')")
 )
 
 // METAR represents a stored METAR data point
