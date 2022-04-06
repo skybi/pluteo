@@ -104,8 +104,7 @@ func (service *Service) EndpointCreateAPIKey(writer http.ResponseWriter, request
 		Capabilities: *payload.Capabilities,
 	}
 	if payload.Description != nil {
-		// TODO: Strip length
-		create.Description = *payload.Description
+		create.Description = apikey.SanitizeDescription(*payload.Description)
 	}
 
 	key, raw, err := service.Storage.APIKeys().Create(request.Context(), create)
@@ -270,11 +269,13 @@ func (service *Service) EndpointEditAPIKey(writer http.ResponseWriter, request *
 	}
 
 	update := &apikey.Update{
-		Description:  payload.Description, // TODO: Strip length
 		Quota:        payload.Quota,
-		UsedQuota:    nil,
 		RateLimit:    payload.RateLimit,
 		Capabilities: payload.Capabilities,
+	}
+	if payload.Description != nil {
+		desc := apikey.SanitizeDescription(*payload.Description)
+		update.Description = &desc
 	}
 
 	newObj, err := service.Storage.APIKeys().Update(request.Context(), obj.ID, update)
