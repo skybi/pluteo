@@ -21,10 +21,13 @@ func NewRepeating(task func(), interval time.Duration) *RepeatingTask {
 
 // Start starts the repeating task.
 // If the task is already running, this is a no-op.
+// A call to Stop as soon as the task is no longer needed is highly recommended as the object would not be garbage
+// collected otherwise.
 func (task *RepeatingTask) Start() {
 	if task.running {
 		return
 	}
+	task.stop = make(chan struct{})
 	go func() {
 		for {
 			select {
@@ -36,7 +39,6 @@ func (task *RepeatingTask) Start() {
 		}
 	}()
 	task.running = true
-	task.stop = make(chan struct{})
 }
 
 // Stop stops the repeating task.
