@@ -48,8 +48,8 @@ func main() {
 		n, err := quotaTracker.Flush()
 		if err != nil {
 			log.Error().Err(err).Msg("could not flush changed API key quotas")
-		} else if n > 0 {
-			log.Info().Int("amount", n).Msg("flushed changed API key quotas")
+		} else {
+			log.Debug().Int("amount", n).Msg("flushed changed API key quotas")
 		}
 	}, time.Minute)
 	flushingTask.Start()
