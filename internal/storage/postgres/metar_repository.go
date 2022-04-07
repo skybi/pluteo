@@ -21,37 +21,38 @@ var _ metar.Repository = (*METARRepository)(nil)
 // GetByFilter retrieves multiple METARs following a filter, ordered by their issuing date (descending).
 // If limit <= 0, a default limit value of 10 is used.
 func (repo *METARRepository) GetByFilter(ctx context.Context, filter *metar.Filter, limit uint64) ([]*metar.METAR, uint64, error) {
-	// Construct the raw (unlimited) SQL query
-	rawQuery := squirrel.Select("*").From("metars").OrderBy("issued_at DESC")
+	// Construct the SQL queries
+	countQuery := squirrel.Select("COUNT(*)").From("metars")
+	query := squirrel.Select("*").From("metars").OrderBy("issued_at DESC")
 	if filter.StationID != nil {
-		rawQuery = rawQuery.Where(squirrel.Eq{"station_id": *filter.StationID})
+		countQuery = countQuery.Where(squirrel.Eq{"station_id": *filter.StationID})
+		query = query.Where(squirrel.Eq{"station_id": *filter.StationID})
 	}
 	if filter.IssuedBefore != nil {
-		rawQuery = rawQuery.Where(squirrel.Lt{"issued_at": *filter.IssuedBefore})
+		countQuery = countQuery.Where(squirrel.Lt{"issued_at": *filter.IssuedBefore})
+		query = query.Where(squirrel.Lt{"issued_at": *filter.IssuedBefore})
 	}
 	if filter.IssuedAfter != nil {
-		rawQuery = rawQuery.Where(squirrel.Gt{"issued_at": *filter.IssuedAfter})
+		countQuery = countQuery.Where(squirrel.Gt{"issued_at": *filter.IssuedAfter})
+		query = query.Where(squirrel.Gt{"issued_at": *filter.IssuedAfter})
 	}
-	rawSQL, rawVals, err := rawQuery.PlaceholderFormat(squirrel.Dollar).ToSql()
+	if limit > 0 {
+		query = query.Limit(limit)
+	} else if limit <= 0 {
+		query = query.Limit(10)
+	}
+	countSQL, countVals, err := countQuery.PlaceholderFormat(squirrel.Dollar).ToSql()
 	if err != nil {
 		return nil, 0, err
 	}
-
-	// Construct the limited query
-	limitedQuery := rawQuery
-	if limit > 0 {
-		limitedQuery = limitedQuery.Limit(limit)
-	} else if limit <= 0 {
-		limitedQuery = limitedQuery.Limit(10)
-	}
-	limitedSQL, limitedVals, err := limitedQuery.PlaceholderFormat(squirrel.Dollar).ToSql()
+	sql, vals, err := query.PlaceholderFormat(squirrel.Dollar).ToSql()
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Fetch the total amount of METARs that matches the given filter
 	var n uint64
-	if err := repo.db.QueryRow(ctx, rawSQL, rawVals...).Scan(&n); err != nil {
+	if err := repo.db.QueryRow(ctx, countSQL, countVals...).Scan(&n); err != nil {
 		return nil, 0, err
 	}
 	if n == 0 {
@@ -59,7 +60,7 @@ func (repo *METARRepository) GetByFilter(ctx context.Context, filter *metar.Filt
 	}
 
 	// Fetch the METAR objects themselves
-	rows, err := repo.db.Query(ctx, limitedSQL, limitedVals...)
+	rows, err := repo.db.Query(ctx, sql, vals...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return []*metar.METAR{}, n, nil

@@ -1,6 +1,6 @@
 package schema
 
-// PaginatedResponse represents a unified paginated API response
+// PaginatedResponse represents a unified based paginated API response
 type PaginatedResponse[T any] struct {
 	Pagination *PaginationMetadata `json:"pagination"`
 	Data       []T                 `json:"data"`

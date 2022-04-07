@@ -6,8 +6,10 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/schema"
+	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
+	"github.com/skybi/data-server/internal/function"
 	"github.com/skybi/data-server/internal/storage"
 	"net/http"
 )
@@ -55,7 +57,8 @@ func (service *Service) Startup() error {
 		service.writer.WriteErrors(writer, http.StatusMethodNotAllowed, schema.ErrMethodNotAllowed)
 	})
 
-	// TODO: Register endpoints
+	// Register the API endpoint handlers
+	service.registerEndpoints(router)
 
 	// Start up the server
 	server := &http.Server{
@@ -72,4 +75,13 @@ func (service *Service) Shutdown() {
 		service.server.Close()
 		service.server = nil
 	}
+}
+
+func (service *Service) registerEndpoints(router chi.Router) {
+	router.Get("/v1/metars", function.Nest[http.HandlerFunc](
+		service.EndpointGetMETARs,
+		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityReadMETARs),
+		service.MiddlewareVerifyKeyQuota,
+	))
 }
