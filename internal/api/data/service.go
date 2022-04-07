@@ -91,4 +91,10 @@ func (service *Service) registerEndpoints(router chi.Router) {
 		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityReadMETARs),
 		service.MiddlewareVerifyKeyQuota,
 	))
+	router.Get("/v1/metars/{id}", function.Nest[http.HandlerFunc](
+		service.EndpointGetMETAR,
+		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityReadMETARs),
+		service.MiddlewareVerifyKeyQuota,
+	))
 }

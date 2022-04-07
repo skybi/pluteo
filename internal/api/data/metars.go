@@ -1,6 +1,8 @@
 package data
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/metar"
@@ -53,6 +55,26 @@ func (service *Service) EndpointGetMETARs(writer http.ResponseWriter, request *h
 	}
 
 	service.writer.WriteJSON(writer, schema.BuildPaginatedResponse(0, uint64(limit), n, metars))
+
+	service.QuotaTracker.Accumulate(request.Context().Value(contextValueKey).(*apikey.Key))
+}
+
+// EndpointGetMETAR handles the 'GET /v1/metars/{id}' endpoint
+func (service *Service) EndpointGetMETAR(writer http.ResponseWriter, request *http.Request) {
+	id := chi.URLParam(request, "id")
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		service.writer.WriteErrors(writer, http.StatusNotFound, schema.ErrNotFound)
+		return
+	}
+
+	obj, err := service.Storage.METARs().GetByID(request.Context(), uid)
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	service.writer.WriteJSON(writer, obj)
 
 	service.QuotaTracker.Accumulate(request.Context().Value(contextValueKey).(*apikey.Key))
 }
