@@ -4,21 +4,21 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/threadsafe"
+	"github.com/skybi/data-server/internal/hashmap"
 )
 
 // Tracker keeps track of the used quota of API keys and updates it in batches in order to reduce database traffic
 type Tracker struct {
 	repo apikey.Repository
 
-	usedQuotas *threadsafe.Map[uuid.UUID, int64]
+	usedQuotas hashmap.Map[uuid.UUID, int64]
 }
 
 // NewTracker creates a new API key quota tracker
 func NewTracker(repo apikey.Repository) *Tracker {
 	return &Tracker{
 		repo:       repo,
-		usedQuotas: threadsafe.NewMap[uuid.UUID, int64](),
+		usedQuotas: hashmap.NewNormal[uuid.UUID, int64](),
 	}
 }
 
@@ -43,13 +43,13 @@ func (tracker *Tracker) Flush() (int, error) {
 		return 0, nil
 	}
 
-	tracker.usedQuotas.Lock()
-	raw := tracker.usedQuotas.GetUnderlyingMap()
-	err := tracker.repo.UpdateManyQuotas(context.Background(), raw)
-	tracker.usedQuotas.Unlock()
+	var err error
+	tracker.usedQuotas.BootstrappedManipulation(func(raw map[uuid.UUID]int64) {
+		err = tracker.repo.UpdateManyQuotas(context.Background(), raw)
+	})
 	if err != nil {
 		return 0, err
 	}
-	tracker.usedQuotas.Reset()
+	tracker.usedQuotas.Clear()
 	return amount, nil
 }
