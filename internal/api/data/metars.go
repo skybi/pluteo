@@ -1,6 +1,8 @@
 package data
 
 import (
+	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/api/schema"
@@ -9,6 +11,28 @@ import (
 	"math"
 	"net/http"
 	"strings"
+)
+
+var (
+	errMETARTooLargeBatch = func(given, max int) *schema.Error {
+		return &schema.Error{
+			Type:    "schema.metars.tooLargeBatch",
+			Message: fmt.Sprintf("A single METAR request may only feed %d METARs (%d were given).", max, given),
+			Details: map[string]any{
+				"given": given,
+				"max":   max,
+			},
+		}
+	}
+	errMETARInvalidFormat = func(raw string, i int) *schema.Error {
+		return &schema.Error{
+			Type:    "data.metars.invalidFormat",
+			Message: raw,
+			Details: map[string]any{
+				"index": i,
+			},
+		}
+	}
 )
 
 // EndpointGetMETARs handles the 'GET /v1/metars?station_id={string?}&before={timestamp?}&after={timestamp?}&limit={number?:10}' endpoint
@@ -77,4 +101,47 @@ func (service *Service) EndpointGetMETAR(writer http.ResponseWriter, request *ht
 	service.writer.WriteJSON(writer, obj)
 
 	service.QuotaTracker.Accumulate(request.Context().Value(contextValueKey).(*apikey.Key))
+}
+
+type endpointFeedMETARsRequestPayload struct {
+	Data []string `json:"data" required:"true"`
+}
+
+type endpointFeedMETARsResponseBody struct {
+	METARs     []*metar.METAR `json:"metars"`
+	Duplicates []uint         `json:"duplicates"`
+}
+
+// EndpointFeedMETARs handles the 'POST /v1/metars' endpoint
+func (service *Service) EndpointFeedMETARs(writer http.ResponseWriter, request *http.Request) {
+	body, validationErrs, err := schema.UnmarshalBody[endpointFeedMETARsRequestPayload](request)
+	if len(validationErrs) > 0 {
+		service.writer.WriteErrors(writer, http.StatusBadRequest, validationErrs...)
+		return
+	}
+	if err != nil {
+		service.writer.WriteInternalError(writer, err)
+		return
+	}
+
+	if len(body.Data) > 100 {
+		service.writer.WriteErrors(writer, http.StatusRequestEntityTooLarge, errMETARTooLargeBatch(len(body.Data), 100))
+		return
+	}
+
+	metars, duplicates, err := service.Storage.METARs().Create(request.Context(), body.Data)
+	if err != nil {
+		var formatErr *metar.FormatError
+		if errors.As(err, &formatErr) {
+			service.writer.WriteErrors(writer, http.StatusBadRequest, errMETARInvalidFormat(err.Error(), formatErr.Index))
+		} else {
+			service.writer.WriteInternalError(writer, err)
+		}
+		return
+	}
+
+	service.writer.WriteJSON(writer, endpointFeedMETARsResponseBody{
+		METARs:     metars,
+		Duplicates: duplicates,
+	})
 }

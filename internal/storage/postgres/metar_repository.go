@@ -111,7 +111,10 @@ func (repo *METARRepository) Create(ctx context.Context, raw []string) ([]*metar
 		if err != nil {
 			var formatErr *metar.FormatError
 			if errors.As(err, &formatErr) {
-				return nil, nil, &metar.FormatError{Wrapping: fmt.Errorf("error in METAR no. %d: %s", i, err.Error())}
+				return nil, nil, &metar.FormatError{
+					Wrapping: fmt.Errorf("error in METAR no. %d: %s", i, err.Error()),
+					Index:    i,
+				}
 			}
 			return nil, nil, err
 		}

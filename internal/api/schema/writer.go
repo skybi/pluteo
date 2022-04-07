@@ -13,6 +13,7 @@ type Writer struct {
 // WriteJSONWithCode writes the JSON representation of value to the given response writer using the given HTTP status code
 func (writer *Writer) WriteJSONWithCode(rw http.ResponseWriter, code int, value any) {
 	val, _ := json.Marshal(value)
+	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(code)
 	rw.Write(val)
 }

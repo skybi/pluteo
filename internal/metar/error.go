@@ -5,6 +5,7 @@ import "errors"
 // FormatError represents an error in a METAR format
 type FormatError struct {
 	Wrapping error
+	Index    int
 }
 
 func (err *FormatError) Error() string {
