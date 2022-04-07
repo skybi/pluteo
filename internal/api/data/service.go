@@ -78,6 +78,13 @@ func (service *Service) Shutdown() {
 }
 
 func (service *Service) registerEndpoints(router chi.Router) {
+	// Register the key information endpoint
+	router.Get("/v1/key_info", function.Nest[http.HandlerFunc](
+		service.EndpointGetKeyInfo,
+		service.MiddlewareVerifyKey,
+	))
+
+	// Register the METAR controller endpoints
 	router.Get("/v1/metars", function.Nest[http.HandlerFunc](
 		service.EndpointGetMETARs,
 		service.MiddlewareVerifyKey,
