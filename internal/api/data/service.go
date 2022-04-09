@@ -4,14 +4,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
 	"github.com/skybi/data-server/internal/function"
+	"github.com/skybi/data-server/internal/hashmap"
 	"github.com/skybi/data-server/internal/storage"
 	"net/http"
+	"time"
 )
 
 // Service represents the data API service
@@ -21,6 +24,8 @@ type Service struct {
 	Config       *config.Config
 	Storage      storage.Driver
 	QuotaTracker *quota.Tracker
+
+	requestCounter *hashmap.ExpiringMap[uuid.UUID, uint]
 
 	writer *schema.Writer
 }
@@ -33,6 +38,10 @@ func (service *Service) Startup() error {
 			log.Error().Err(err).Msg("the data API experienced an unexpected error")
 		},
 	}
+
+	// Initialize the request counter
+	service.requestCounter = hashmap.NewExpiring[uuid.UUID, uint](time.Minute)
+	service.requestCounter.ScheduleCleanupTask(10 * time.Second)
 
 	// Create the HTTP router
 	router := chi.NewRouter()
@@ -71,6 +80,9 @@ func (service *Service) Startup() error {
 
 // Shutdown shuts down the portal API
 func (service *Service) Shutdown() {
+	if service.requestCounter != nil {
+		service.requestCounter.StopCleanupTask()
+	}
 	if service.server != nil {
 		service.server.Close()
 		service.server = nil
@@ -82,24 +94,28 @@ func (service *Service) registerEndpoints(router chi.Router) {
 	router.Get("/v1/key_info", function.Nest[http.HandlerFunc](
 		service.EndpointGetKeyInfo,
 		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyRateLimit,
 	))
 
 	// Register the METAR controller endpoints
 	router.Get("/v1/metars", function.Nest[http.HandlerFunc](
 		service.EndpointGetMETARs,
 		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyRateLimit,
 		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityReadMETARs),
 		service.MiddlewareVerifyKeyQuota,
 	))
 	router.Get("/v1/metars/{id}", function.Nest[http.HandlerFunc](
 		service.EndpointGetMETAR,
 		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyRateLimit,
 		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityReadMETARs),
 		service.MiddlewareVerifyKeyQuota,
 	))
 	router.Post("/v1/metars", function.Nest[http.HandlerFunc](
 		service.EndpointFeedMETARs,
 		service.MiddlewareVerifyKey,
+		service.MiddlewareVerifyKeyRateLimit,
 		service.MiddlewareVerifyKeyCapabilities(apikey.CapabilityFeedMETARs),
 	))
 }

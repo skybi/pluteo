@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/bitflag"
@@ -28,6 +29,15 @@ var (
 		Type:    "data.access.noKeyQuotaLeft",
 		Message: "The specified API key has no API quota left.",
 		Details: nil,
+	}
+	errKeyRateLimitExceeded = func(max int) *schema.Error {
+		return &schema.Error{
+			Type:    "data.access.rateLimitExceeded",
+			Message: fmt.Sprintf("The specified API key is being rate limited (max. %d requests per minute).", max),
+			Details: map[string]any{
+				"max": max,
+			},
+		}
 	}
 )
 
@@ -96,9 +106,37 @@ func (service *Service) MiddlewareVerifyKeyQuota(next http.HandlerFunc) http.Han
 
 		// Verify the key's quota
 		if key.Quota >= 0 && service.QuotaTracker.Get(key) >= key.Quota {
-			service.writer.WriteErrors(writer, http.StatusForbidden, errKeyNoQuotaLeft)
+			service.writer.WriteErrors(writer, http.StatusTooManyRequests, errKeyNoQuotaLeft)
 			return
 		}
+
+		// Delegate to the next handler
+		next(writer, request)
+	}
+}
+
+// MiddlewareVerifyKeyRateLimit makes sure that the provided API key does not make too many requests per minute
+func (service *Service) MiddlewareVerifyKeyRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		// Extract the API key object
+		key, ok := request.Context().Value(contextValueKey).(*apikey.Key)
+		if !ok {
+			service.writer.WriteInternalError(writer, errors.New("API key rate limit check without API key verification"))
+			return
+		}
+
+		// Make sure the client may make another request
+		used, ok := service.requestCounter.Lookup(key.ID)
+		if !ok {
+			used = 0
+		}
+		if key.RateLimit >= 0 && int(used) >= key.RateLimit {
+			service.writer.WriteErrors(writer, http.StatusTooManyRequests, errKeyRateLimitExceeded(key.RateLimit))
+			return
+		}
+
+		// Update the client's request counter
+		service.requestCounter.Set(key.ID, used+1)
 
 		// Delegate to the next handler
 		next(writer, request)
