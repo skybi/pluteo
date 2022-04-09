@@ -8,6 +8,7 @@ import (
 	"github.com/skybi/data-server/internal/api"
 	"github.com/skybi/data-server/internal/apikey/quota"
 	"github.com/skybi/data-server/internal/config"
+	"github.com/skybi/data-server/internal/storage/cache"
 	"github.com/skybi/data-server/internal/storage/postgres"
 	"github.com/skybi/data-server/internal/task"
 	"os"
@@ -37,13 +38,19 @@ func main() {
 
 	// Initialize the PostgreSQL storage driver
 	log.Info().Msg("initializing database connection...")
-	driver := postgres.New(cfg.PostgresDSN)
-	if err := driver.Initialize(context.Background()); err != nil {
+	pgStorage := postgres.New(cfg.PostgresDSN)
+	if err := pgStorage.Initialize(context.Background()); err != nil {
 		log.Fatal().Err(err).Msg("could not initialize the database connection")
 	}
+	defer pgStorage.Close()
+
+	// Initialize the caching storage driver
+	cacheStorage := cache.New(pgStorage)
+	cacheStorage.Initialize(nil)
+	defer cacheStorage.Close()
 
 	// Create the API key quota tracker and schedule a task that flushes it
-	quotaTracker := quota.NewTracker(driver.APIKeys())
+	quotaTracker := quota.NewTracker(cacheStorage.APIKeys())
 	flushingTask := task.NewRepeating(func() {
 		n, err := quotaTracker.Flush()
 		if err != nil {
@@ -59,7 +66,7 @@ func main() {
 	log.Info().Str("portal_api", cfg.PortalAPIListenAddress).Str("data_api", cfg.DataAPIListenAddress).Msg("starting up portal & data APIs...")
 	apis := &api.Service{
 		Config:       cfg,
-		Storage:      driver,
+		Storage:      cacheStorage,
 		QuotaTracker: quotaTracker,
 	}
 	apiErrs := make(chan error, 1)
