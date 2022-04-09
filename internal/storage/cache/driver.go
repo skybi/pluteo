@@ -16,6 +16,7 @@ type Driver struct {
 	underlying storage.Driver
 	users      *UserRepository
 	apiKeys    *APIKeyRepository
+	metars     *METARRepository
 }
 
 var _ storage.Driver = (*Driver)(nil)
@@ -43,6 +44,13 @@ func (driver *Driver) Initialize(_ context.Context) error {
 		cache: apiKeyCache,
 	}
 
+	metarCache := hashmap.NewExpiring[uuid.UUID, *metar.METAR](5 * time.Minute)
+	metarCache.ScheduleCleanupTask(10 * time.Second)
+	driver.metars = &METARRepository{
+		repo:  driver.underlying.METARs(),
+		cache: metarCache,
+	}
+
 	return nil
 }
 
@@ -58,8 +66,7 @@ func (driver *Driver) APIKeys() apikey.Repository {
 
 // METARs provides the caching METAR repository implementation
 func (driver *Driver) METARs() metar.Repository {
-	//TODO implement me
-	return driver.underlying.METARs()
+	return driver.metars
 }
 
 // Close closes the caching repositories and disposes their instances
@@ -68,4 +75,6 @@ func (driver *Driver) Close() {
 	driver.users = nil
 	driver.apiKeys.cache.StopCleanupTask()
 	driver.apiKeys = nil
+	driver.metars.cache.StopCleanupTask()
+	driver.metars = nil
 }
