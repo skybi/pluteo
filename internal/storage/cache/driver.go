@@ -31,21 +31,21 @@ func New(underlying storage.Driver) *Driver {
 // Initialize initializes the caching repositories
 func (driver *Driver) Initialize(_ context.Context) error {
 	userCache := hashmap.NewExpiring[string, *user.User](5 * time.Minute)
-	userCache.ScheduleCleanupTask(10 * time.Second)
+	userCache.ScheduleCleanupTask(time.Minute)
 	driver.users = &UserRepository{
 		repo:  driver.underlying.Users(),
 		cache: userCache,
 	}
 
 	apiKeyCache := hashmap.NewExpiring[uuid.UUID, *apikey.Key](5 * time.Minute)
-	apiKeyCache.ScheduleCleanupTask(10 * time.Second)
+	apiKeyCache.ScheduleCleanupTask(time.Minute)
 	driver.apiKeys = &APIKeyRepository{
 		repo:  driver.underlying.APIKeys(),
 		cache: apiKeyCache,
 	}
 
 	metarCache := hashmap.NewExpiring[uuid.UUID, *metar.METAR](5 * time.Minute)
-	metarCache.ScheduleCleanupTask(10 * time.Second)
+	metarCache.ScheduleCleanupTask(time.Minute)
 	driver.metars = &METARRepository{
 		repo:  driver.underlying.METARs(),
 		cache: metarCache,

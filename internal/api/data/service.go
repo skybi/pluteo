@@ -41,7 +41,7 @@ func (service *Service) Startup() error {
 
 	// Initialize the request counter
 	service.requestCounter = hashmap.NewExpiring[uuid.UUID, uint](time.Minute)
-	service.requestCounter.ScheduleCleanupTask(10 * time.Second)
+	service.requestCounter.ScheduleCleanupTask(time.Minute)
 
 	// Create the HTTP router
 	router := chi.NewRouter()

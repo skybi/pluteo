@@ -10,7 +10,8 @@ type expiringEntry[T any] struct {
 	inserted time.Time
 }
 
-// ExpiringMap implements the Map interface and wraps the standard NormalMap in order to implement value expiration
+// ExpiringMap implements the Map interface and wraps the standard NormalMap in order to implement value expiration.
+// Expired values are either removed by a repeating task started with ScheduleCleanupTask or lazy whenever requested.
 type ExpiringMap[K comparable, V any] struct {
 	normal      *NormalMap[K, *expiringEntry[V]]
 	lifetime    time.Duration
@@ -54,7 +55,7 @@ func (obj *ExpiringMap[K, V]) StopCleanupTask() {
 	obj.cleanupTask = nil
 }
 
-// Size returns the amount of stored key-value pairs
+// Size returns the amount of stored key-value pairs (this may count expired values as well)
 func (obj *ExpiringMap[K, V]) Size() int {
 	return obj.normal.Size()
 }
@@ -69,7 +70,8 @@ func (obj *ExpiringMap[K, V]) Has(key K) bool {
 // the type's zero value
 func (obj *ExpiringMap[K, V]) Lookup(key K) (V, bool) {
 	val, ok := obj.normal.Lookup(key)
-	if !ok {
+	if !ok || time.Since(val.inserted) > obj.lifetime {
+		obj.normal.Unset(key)
 		var zero V
 		return zero, false
 	}
@@ -80,7 +82,8 @@ func (obj *ExpiringMap[K, V]) Lookup(key K) (V, bool) {
 // Will be nil if it was not set using Set before.
 func (obj *ExpiringMap[K, V]) Get(key K) V {
 	raw := obj.normal.Get(key)
-	if raw == nil {
+	if raw == nil || time.Since(raw.inserted) > obj.lifetime {
+		obj.normal.Unset(key)
 		var zero V
 		return zero
 	}
