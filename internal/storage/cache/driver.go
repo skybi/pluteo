@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/hashmap"
 	"github.com/skybi/data-server/internal/metar"
@@ -14,6 +15,7 @@ import (
 type Driver struct {
 	underlying storage.Driver
 	users      *UserRepository
+	apiKeys    *APIKeyRepository
 }
 
 var _ storage.Driver = (*Driver)(nil)
@@ -34,6 +36,13 @@ func (driver *Driver) Initialize(_ context.Context) error {
 		cache: userCache,
 	}
 
+	apiKeyCache := hashmap.NewExpiring[uuid.UUID, *apikey.Key](5 * time.Minute)
+	apiKeyCache.ScheduleCleanupTask(10 * time.Second)
+	driver.apiKeys = &APIKeyRepository{
+		repo:  driver.underlying.APIKeys(),
+		cache: apiKeyCache,
+	}
+
 	return nil
 }
 
@@ -44,8 +53,7 @@ func (driver *Driver) Users() user.Repository {
 
 // APIKeys provides the caching API key repository implementation
 func (driver *Driver) APIKeys() apikey.Repository {
-	// TODO implement me
-	return driver.underlying.APIKeys()
+	return driver.apiKeys
 }
 
 // METARs provides the caching METAR repository implementation
@@ -58,4 +66,6 @@ func (driver *Driver) METARs() metar.Repository {
 func (driver *Driver) Close() {
 	driver.users.cache.StopCleanupTask()
 	driver.users = nil
+	driver.apiKeys.cache.StopCleanupTask()
+	driver.apiKeys = nil
 }
