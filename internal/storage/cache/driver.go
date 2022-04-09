@@ -39,9 +39,12 @@ func (driver *Driver) Initialize(_ context.Context) error {
 
 	apiKeyCache := hashmap.NewExpiring[uuid.UUID, *apikey.Key](5 * time.Minute)
 	apiKeyCache.ScheduleCleanupTask(time.Minute)
+	apiKeyHashCache := hashmap.NewExpiring[[64]byte, uuid.UUID](5 * time.Minute)
+	apiKeyHashCache.ScheduleCleanupTask(time.Minute)
 	driver.apiKeys = &APIKeyRepository{
-		repo:  driver.underlying.APIKeys(),
-		cache: apiKeyCache,
+		repo:      driver.underlying.APIKeys(),
+		cache:     apiKeyCache,
+		hashCache: apiKeyHashCache,
 	}
 
 	metarCache := hashmap.NewExpiring[uuid.UUID, *metar.METAR](5 * time.Minute)
@@ -74,6 +77,7 @@ func (driver *Driver) Close() {
 	driver.users.cache.StopCleanupTask()
 	driver.users = nil
 	driver.apiKeys.cache.StopCleanupTask()
+	driver.apiKeys.hashCache.StopCleanupTask()
 	driver.apiKeys = nil
 	driver.metars.cache.StopCleanupTask()
 	driver.metars = nil

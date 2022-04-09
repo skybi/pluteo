@@ -5,12 +5,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/skybi/data-server/internal/apikey"
 	"github.com/skybi/data-server/internal/hashmap"
+	"github.com/skybi/data-server/internal/secret"
 )
 
 // APIKeyRepository implements the apikey.Repository interface in order to implement caching
 type APIKeyRepository struct {
-	repo  apikey.Repository
-	cache *hashmap.ExpiringMap[uuid.UUID, *apikey.Key]
+	repo      apikey.Repository
+	cache     *hashmap.ExpiringMap[uuid.UUID, *apikey.Key]
+	hashCache *hashmap.ExpiringMap[[64]byte, uuid.UUID]
 }
 
 var _ apikey.Repository = (*APIKeyRepository)(nil)
@@ -57,11 +59,21 @@ func (repo *APIKeyRepository) GetByID(ctx context.Context, id uuid.UUID) (*apike
 
 // GetByRawKey retrieves an API key by the raw bearer token
 func (repo *APIKeyRepository) GetByRawKey(ctx context.Context, key string) (*apikey.Key, error) {
+	hash, err := secret.Hash(key)
+	if err != nil {
+		return nil, err
+	}
+	id, ok := repo.hashCache.Lookup(hash)
+	if ok {
+		return repo.GetByID(ctx, id)
+	}
+
 	obj, err := repo.repo.GetByRawKey(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 	if obj != nil {
+		repo.hashCache.Set(hash, obj.ID)
 		repo.cache.Set(obj.ID, obj)
 	}
 	return obj, nil
