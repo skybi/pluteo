@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog/log"
 	"github.com/skybi/data-server/internal/api/portal/session"
 	"github.com/skybi/data-server/internal/api/schema"
 	"github.com/skybi/data-server/internal/random"
@@ -228,6 +229,56 @@ func (service *Service) EndpointOIDCLoginCallback(writer http.ResponseWriter, re
 
 	// Redirect the user to the URL specified on login flow initiating
 	http.Redirect(writer, request, state.Afterwards, http.StatusFound)
+}
+
+// EndpointOIDCBackchannelLogout handles the 'POST /v1/auth/oidc/backchannel_logout' endpoint
+func (service *Service) EndpointOIDCBackchannelLogout(writer http.ResponseWriter, request *http.Request) {
+	// Validate the required content type ('application/x-www-form-urlencoded')
+	if request.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+		writer.WriteHeader(http.StatusBadRequest)
+		writer.Write([]byte("invalid content type"))
+		return
+	}
+
+	// Validate and parse the given logout token
+	rawToken := request.FormValue("logout_token")
+	token, err := service.oidcLogoutTokenVerifier.Verify(request.Context(), rawToken)
+	if err != nil {
+		writer.WriteHeader(http.StatusBadRequest)
+		writer.Write([]byte(err.Error()))
+		return
+	}
+
+	// Terminate all sessions of a specific user if a user ID is included
+	if token.Subject != "" {
+		if err := service.sessionStorage.TerminateByUserID(request.Context(), token.Subject); err != nil {
+			// Don't ask me why; https://openid.net/specs/openid-connect-backchannel-1_0.html#BCResponse tells me so
+			writer.WriteHeader(http.StatusNotImplemented)
+			writer.Write([]byte(err.Error()))
+			log.Error().Err(err).Msg("unable to terminate session(s) by user ID")
+			return
+		}
+	}
+
+	// Terminate a session with a specific ID if a session ID is included
+	if token.SessionId != "" {
+		if err := service.sessionStorage.TerminateBySessionID(request.Context(), token.SessionId); err != nil {
+			// Don't ask me why; https://openid.net/specs/openid-connect-backchannel-1_0.html#BCResponse tells me so
+			writer.WriteHeader(http.StatusNotImplemented)
+			writer.Write([]byte(err.Error()))
+			log.Error().Err(err).Msg("unable to terminate session(s) by session ID")
+			return
+		}
+	}
+
+	// At least one of 'sub' or 'sid' claims is required
+	if token.Subject == "" && token.SessionId == "" {
+		writer.WriteHeader(http.StatusBadRequest)
+		writer.Write([]byte("at least one of 'sub' and 'sid' is required"))
+		return
+	}
+
+	writer.WriteHeader(http.StatusOK)
 }
 
 // MiddlewareVerifySession makes sure that the requesting client has provided a valid session token.

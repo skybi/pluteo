@@ -2,6 +2,8 @@ module github.com/skybi/data-server
 
 go 1.18
 
+replace github.com/coreos/go-oidc/v3 v3.1.0 => github.com/aspeteRakete/go-oidc/v3 v3.0.0-20220215070641-1a24e42993e5
+
 require (
 	github.com/joho/godotenv v1.4.0
 	github.com/kelseyhightower/envconfig v1.4.0

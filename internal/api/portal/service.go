@@ -24,10 +24,11 @@ type Service struct {
 	Config  *config.Config
 	Storage storage.Driver
 
-	oidcOAuth2Config    *oauth2.Config
-	oidcProvider        *oidc.Provider
-	oidcIDTokenVerifier *oidc.IDTokenVerifier
-	sessionStorage      session.Storage
+	oidcOAuth2Config        *oauth2.Config
+	oidcProvider            *oidc.Provider
+	oidcIDTokenVerifier     *oidc.IDTokenVerifier
+	oidcLogoutTokenVerifier *oidc.LogoutTokenVerifier
+	sessionStorage          session.Storage
 
 	writer *schema.Writer
 }
@@ -64,15 +65,17 @@ func (service *Service) Startup() error {
 		service.writer.WriteErrors(writer, http.StatusMethodNotAllowed, schema.ErrMethodNotAllowed)
 	})
 
-	// Create the OIDC provider & ID token verifier
+	// Create the OIDC provider, ID token verifier & logout token verifier
 	oidcProvider, err := oidc.NewProvider(context.Background(), service.Config.OIDCProviderURL)
 	if err != nil {
 		return err
 	}
 	service.oidcProvider = oidcProvider
-	service.oidcIDTokenVerifier = oidcProvider.Verifier(&oidc.Config{
+	cfg := &oidc.Config{
 		ClientID: service.Config.OIDCClientID,
-	})
+	}
+	service.oidcIDTokenVerifier = oidcProvider.Verifier(cfg)
+	service.oidcLogoutTokenVerifier = oidcProvider.LogoutVerifier(cfg)
 
 	// Create the OAuth2 config
 	service.oidcOAuth2Config = &oauth2.Config{
@@ -114,8 +117,7 @@ func (service *Service) registerEndpoints(router chi.Router) {
 	// Register the OIDC authentication endpoints
 	router.Get("/v1/auth/oidc/login_flow", service.EndpointOIDCLoginFlow)
 	router.Get("/v1/auth/oidc/callback", service.EndpointOIDCLoginCallback)
-
-	// TODO: Implement backchannel logout
+	router.Post("/v1/auth/oidc/backchannel_logout", service.EndpointOIDCBackchannelLogout)
 
 	// Register the user controller endpoints
 	router.Get("/v1/users", function.Nest[http.HandlerFunc](
