@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/skybi/data-server/internal/metar"
+	"github.com/skybi/pluteo/internal/metar"
 )
 
 // METARRepository implements the metar.Repository interface using PostgreSQL

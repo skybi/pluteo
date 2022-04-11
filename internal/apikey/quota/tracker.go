@@ -3,8 +3,8 @@ package quota
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/hashmap"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/hashmap"
 )
 
 // Tracker keeps track of the used quota of API keys and updates it in batches in order to reduce database traffic

@@ -2,8 +2,8 @@ package cache
 
 import (
 	"context"
-	"github.com/skybi/data-server/internal/hashmap"
-	"github.com/skybi/data-server/internal/user"
+	"github.com/skybi/pluteo/internal/hashmap"
+	"github.com/skybi/pluteo/internal/user"
 )
 
 // UserRepository implements the user.Repository interface in order to implement caching

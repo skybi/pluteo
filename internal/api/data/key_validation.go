@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/skybi/data-server/internal/api/schema"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/api/schema"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/bitflag"
 	"net/http"
 	"strings"
 )

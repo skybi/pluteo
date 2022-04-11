@@ -6,7 +6,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/skybi/data-server/internal/user"
+	"github.com/skybi/pluteo/internal/user"
 )
 
 var (

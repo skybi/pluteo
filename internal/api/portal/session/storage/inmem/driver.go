@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/hashicorp/go-memdb"
-	"github.com/skybi/data-server/internal/api/portal/session"
-	"github.com/skybi/data-server/internal/secret"
+	"github.com/skybi/pluteo/internal/api/portal/session"
+	"github.com/skybi/pluteo/internal/secret"
 	"time"
 )
 

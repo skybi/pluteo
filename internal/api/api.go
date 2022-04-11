@@ -2,11 +2,11 @@ package api
 
 import (
 	"errors"
-	"github.com/skybi/data-server/internal/api/data"
-	"github.com/skybi/data-server/internal/api/portal"
-	"github.com/skybi/data-server/internal/apikey/quota"
-	"github.com/skybi/data-server/internal/config"
-	"github.com/skybi/data-server/internal/storage"
+	"github.com/skybi/pluteo/internal/api/data"
+	"github.com/skybi/pluteo/internal/api/portal"
+	"github.com/skybi/pluteo/internal/apikey/quota"
+	"github.com/skybi/pluteo/internal/config"
+	"github.com/skybi/pluteo/internal/storage"
 	"net/http"
 )
 

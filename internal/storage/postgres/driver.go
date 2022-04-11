@@ -8,10 +8,10 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/metar"
-	"github.com/skybi/data-server/internal/storage"
-	"github.com/skybi/data-server/internal/user"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/metar"
+	"github.com/skybi/pluteo/internal/storage"
+	"github.com/skybi/pluteo/internal/user"
 )
 
 //go:embed migrations/*.sql

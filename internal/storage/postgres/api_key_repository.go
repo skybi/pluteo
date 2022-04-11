@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/secret"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/secret"
 )
 
 var keyLength = 64

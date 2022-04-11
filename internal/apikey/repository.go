@@ -3,7 +3,7 @@ package apikey
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/bitflag"
 )
 
 // Repository defines the API key repository API

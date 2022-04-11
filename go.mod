@@ -1,4 +1,4 @@
-module github.com/skybi/data-server
+module github.com/skybi/pluteo
 
 go 1.18
 

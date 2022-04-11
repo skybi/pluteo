@@ -2,9 +2,9 @@ package portal
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/skybi/data-server/internal/api/schema"
-	"github.com/skybi/data-server/internal/bitflag"
-	"github.com/skybi/data-server/internal/user"
+	"github.com/skybi/pluteo/internal/api/schema"
+	"github.com/skybi/pluteo/internal/bitflag"
+	"github.com/skybi/pluteo/internal/user"
 	"math"
 	"net/http"
 )

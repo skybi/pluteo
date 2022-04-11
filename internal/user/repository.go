@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/bitflag"
 )
 
 // Repository defines the user repository API

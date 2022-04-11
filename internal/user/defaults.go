@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/bitflag"
 )
 
 // DefaultAPIKeyPolicy returns the default API key policy to use for new users

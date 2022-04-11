@@ -1,7 +1,7 @@
 package hashmap
 
 import (
-	"github.com/skybi/data-server/internal/task"
+	"github.com/skybi/pluteo/internal/task"
 	"time"
 )
 

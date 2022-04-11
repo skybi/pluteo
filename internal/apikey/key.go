@@ -2,7 +2,7 @@ package apikey
 
 import (
 	"github.com/google/uuid"
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/bitflag"
 	"strings"
 	"unicode/utf8"
 )

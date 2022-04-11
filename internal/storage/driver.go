@@ -2,9 +2,9 @@ package storage
 
 import (
 	"context"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/metar"
-	"github.com/skybi/data-server/internal/user"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/metar"
+	"github.com/skybi/pluteo/internal/user"
 )
 
 // Driver represents a storage driver

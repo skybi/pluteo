@@ -3,9 +3,9 @@ package cache
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/skybi/data-server/internal/apikey"
-	"github.com/skybi/data-server/internal/hashmap"
-	"github.com/skybi/data-server/internal/secret"
+	"github.com/skybi/pluteo/internal/apikey"
+	"github.com/skybi/pluteo/internal/hashmap"
+	"github.com/skybi/pluteo/internal/secret"
 )
 
 // APIKeyRepository implements the apikey.Repository interface in order to implement caching

@@ -1,7 +1,7 @@
 package user
 
 import (
-	"github.com/skybi/data-server/internal/bitflag"
+	"github.com/skybi/pluteo/internal/bitflag"
 )
 
 // User represents a user registered to the service

@@ -3,8 +3,8 @@ package cache
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/skybi/data-server/internal/hashmap"
-	"github.com/skybi/data-server/internal/metar"
+	"github.com/skybi/pluteo/internal/hashmap"
+	"github.com/skybi/pluteo/internal/metar"
 )
 
 // METARRepository implements the metar.Repository interface in order to implement caching

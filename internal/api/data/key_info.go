@@ -1,7 +1,7 @@
 package data
 
 import (
-	"github.com/skybi/data-server/internal/apikey"
+	"github.com/skybi/pluteo/internal/apikey"
 	"net/http"
 )
 
