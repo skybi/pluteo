@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+var metarFeedBatchMaxSize = 500
+
 var (
 	errMETARTooLargeBatch = func(given, max int) *schema.Error {
 		return &schema.Error{
@@ -124,8 +126,8 @@ func (service *Service) EndpointFeedMETARs(writer http.ResponseWriter, request *
 		return
 	}
 
-	if len(body.Data) > 100 {
-		service.writer.WriteErrors(writer, http.StatusRequestEntityTooLarge, errMETARTooLargeBatch(len(body.Data), 100))
+	if len(body.Data) > metarFeedBatchMaxSize {
+		service.writer.WriteErrors(writer, http.StatusRequestEntityTooLarge, errMETARTooLargeBatch(len(body.Data), metarFeedBatchMaxSize))
 		return
 	}
 
