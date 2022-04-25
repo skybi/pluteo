@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+  pluteo:
+    image: "ghcr.io/skybi/pluteo:1.0"
+    container_name: "pluteo"
+    restart: "unless-stopped"
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      SB_POSTGRES_DSN: "postgres://pluteo:password@pluteo-db/pluteo?sslmode=disable"
+      SB_PORTAL_API_BASE_ADDRESS: "http://domain.example:8081"
+      SB_PORTAL_API_ALLOWED_ORIGIN: "http://portal.domain.example"
+      SB_OIDC_PROVIDER_URL: "http://kc.domain.example/auth/realms/skybi"
+      SB_OIDC_CLIENT_ID: "pluteo"
+      SB_OIDC_CLIENT_SECRET: "super-secure-secret"
+  pluteo-db:
+    image: "postgres:14-alpine"
+    container_name: "pluteo-db"
+    restart: "unless-stopped"
+    environment:
+      POSTGRES_USER: "pluteo"
+      POSTGRES_PASSWORD: "password"
+    volumes:
+      - "./data:/var/lib/postgresql/data"
